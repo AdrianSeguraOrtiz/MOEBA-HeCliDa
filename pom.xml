@@ -1,129 +1,291 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.example</groupId>
-    <artifactId>MOEBA</artifactId>
-    <version>1.0-SNAPSHOT</version>
+  <!-- ✅ Namespace verificado en Central Portal -->
+  <groupId>io.github.adrianseguraortiz</groupId>
+  <artifactId>moeba-bio</artifactId>
+  <!-- ❗ Central: releases (no -SNAPSHOT) -->
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
 
-    <properties>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
-    </properties>
+  <name>MOEBA-BIO</name>
+  <description>MOEBA-BIO: Multi-Objective Evolutionary Biclustering Algorithm for BIOmedical applications.</description>
+  <url>https://github.com/adrianseguraortiz/MOEBA-BIO</url>
 
-    <dependencies>
-        <!-- https://mvnrepository.com/artifact/org.uma.jmetal/jmetal-core -->
-        <dependency>
-            <groupId>org.uma.jmetal</groupId>
-            <artifactId>jmetal-core</artifactId>
-            <version>5.11</version>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/org.uma.jmetal/jmetal-algorithm -->
-        <dependency>
-            <groupId>org.uma.jmetal</groupId>
-            <artifactId>jmetal-algorithm</artifactId>
-            <version>5.11</version>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/org.uma.jmetal/jmetal-example -->
-        <dependency>
-            <groupId>org.uma.jmetal</groupId>
-            <artifactId>jmetal-example</artifactId>
-            <version>5.11</version>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/org.uma.jmetal/jmetal-experimental -->
-        <dependency>
-            <groupId>org.uma.jmetal</groupId>
-            <artifactId>jmetal-experimental</artifactId>
-            <version>5.11</version>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/org.uma.jmetal/jmetal-parallel -->
-        <dependency>
-            <groupId>org.uma.jmetal</groupId>
-            <artifactId>jmetal-parallel</artifactId>
-            <version>5.11</version>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-api -->
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <version>5.8.2</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <version>5.8.2</version>
-            <scope>compile</scope>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/org.testng/testng -->
-        <dependency>
-            <groupId>org.testng</groupId>
-            <artifactId>testng</artifactId>
-            <version>7.9.0</version>
-            <scope>test</scope>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/info.picocli/picocli -->
-        <dependency>
-            <groupId>info.picocli</groupId>
-            <artifactId>picocli</artifactId>
-            <version>4.7.5</version>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/org.mockito/mockito-core -->
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <version>5.11.0</version>
-            <scope>test</scope>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/org.ehcache/ehcache -->
-        <dependency>
-            <groupId>org.ehcache</groupId>
-            <artifactId>ehcache</artifactId>
-            <version>3.10.8</version>
-            <!-- Based on https://stackoverflow.com/questions/72128029/how-do-i-resolve-could-not-find-artifact-javax-xml-bindjaxb-apipom2-3-0-b1611 -->
-            <exclusions>
-                <exclusion>
-                    <groupId>org.glassfish.jaxb</groupId>
-                    <artifactId>jaxb-runtime</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.zeroturnaround</groupId>
-            <artifactId>zt-zip</artifactId>
-            <version>1.17</version>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/org.jgrapht/jgrapht-core -->
-        <dependency>
-            <groupId>org.jgrapht</groupId>
-            <artifactId>jgrapht-core</artifactId>
-            <version>1.5.2</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.docker-java</groupId>
-            <artifactId>docker-java</artifactId>
-            <version>3.2.13</version>
-        </dependency>
-    </dependencies>
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://opensource.org/licenses/MIT</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
 
-    <build>
+  <developers>
+    <developer>
+      <id>adrianseguraortiz</id>
+      <name>Adrián Segura Ortiz</name>
+      <email>adrianseor.99@gmail.com</email>
+      <url>https://github.com/adrianseguraortiz</url>
+    </developer>
+  </developers>
+
+  <scm>
+    <url>https://github.com/adrianseguraortiz/MOEBA-BIO</url>
+    <!-- ✅ Preferible https -->
+    <connection>scm:git:https://github.com/adrianseguraortiz/MOEBA-BIO.git</connection>
+    <!-- ✅ ssh canonical -->
+    <developerConnection>scm:git:ssh://git@github.com/adrianseguraortiz/MOEBA-BIO.git</developerConnection>
+    <!-- ✅ parametrizable -->
+    <tag>${project.scm.tag}</tag>
+  </scm>
+
+  <properties>
+    <maven.compiler.release>11</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+    <!-- ✅ SCM tag (default) -->
+    <project.scm.tag>HEAD</project.scm.tag>
+
+    <!-- Central publishing -->
+    <central.publishing.plugin.version>0.9.0</central.publishing.plugin.version>
+
+    <!-- Plugins versions -->
+    <maven.gpg.plugin.version>3.2.7</maven.gpg.plugin.version>
+    <maven.source.plugin.version>3.3.1</maven.source.plugin.version>
+    <maven.javadoc.plugin.version>3.7.0</maven.javadoc.plugin.version>
+    <maven.surefire.plugin.version>3.2.5</maven.surefire.plugin.version>
+    <maven.assembly.plugin.version>3.6.0</maven.assembly.plugin.version>
+    <maven.compiler.plugin.version>3.11.0</maven.compiler.plugin.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.uma.jmetal</groupId>
+      <artifactId>jmetal-core</artifactId>
+      <version>5.11</version>
+    </dependency>
+    <dependency>
+      <groupId>org.uma.jmetal</groupId>
+      <artifactId>jmetal-algorithm</artifactId>
+      <version>5.11</version>
+    </dependency>
+    <dependency>
+      <groupId>org.uma.jmetal</groupId>
+      <artifactId>jmetal-example</artifactId>
+      <version>5.11</version>
+    </dependency>
+    <dependency>
+      <groupId>org.uma.jmetal</groupId>
+      <artifactId>jmetal-experimental</artifactId>
+      <version>5.11</version>
+    </dependency>
+    <dependency>
+      <groupId>org.uma.jmetal</groupId>
+      <artifactId>jmetal-parallel</artifactId>
+      <version>5.11</version>
+    </dependency>
+
+    <!-- ✅ Test deps -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <version>5.8.2</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <version>5.8.2</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.testng</groupId>
+      <artifactId>testng</artifactId>
+      <version>7.9.0</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>info.picocli</groupId>
+      <artifactId>picocli</artifactId>
+      <version>4.7.5</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>5.11.0</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.ehcache</groupId>
+      <artifactId>ehcache</artifactId>
+      <version>3.10.8</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.glassfish.jaxb</groupId>
+          <artifactId>jaxb-runtime</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.zeroturnaround</groupId>
+      <artifactId>zt-zip</artifactId>
+      <version>1.17</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.jgrapht</groupId>
+      <artifactId>jgrapht-core</artifactId>
+      <version>1.5.2</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.github.docker-java</groupId>
+      <artifactId>docker-java</artifactId>
+      <version>3.2.13</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+
+      <!-- ✅ Compiler explícito -->
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>${maven.compiler.plugin.version}</version>
+        <configuration>
+          <release>${maven.compiler.release}</release>
+        </configuration>
+      </plugin>
+
+      <!-- Tests -->
+      <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${maven.surefire.plugin.version}</version>
+        <configuration>
+          <useModulePath>false</useModulePath>
+        </configuration>
+      </plugin>
+
+      <!-- (Opcional) Tu "jar-with-dependencies" como artefacto extra con classifier -->
+      <plugin>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <version>${maven.assembly.plugin.version}</version>
+        <configuration>
+          <archive>
+            <manifest>
+              <mainClass>moeba.Runner</mainClass>
+            </manifest>
+          </archive>
+          <descriptorRefs>
+            <descriptorRef>jar-with-dependencies</descriptorRef>
+          </descriptorRefs>
+          <finalName>${project.artifactId}-${project.version}</finalName>
+          <appendAssemblyId>true</appendAssemblyId>
+        </configuration>
+        <executions>
+          <execution>
+            <id>make-assembly</id>
+            <phase>package</phase>
+            <goals>
+              <goal>single</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- ✅ Central Portal publishing (usa settings.xml server id "central") -->
+      <plugin>
+        <groupId>org.sonatype.central</groupId>
+        <artifactId>central-publishing-maven-plugin</artifactId>
+        <version>${central.publishing.plugin.version}</version>
+        <extensions>true</extensions>
+        <configuration>
+          <publishingServerId>central</publishingServerId>
+          <!-- Si quieres que publique automático sin ir a la web:
+          <autoPublish>true</autoPublish>
+          -->
+        </configuration>
+      </plugin>
+
+    </plugins>
+  </build>
+
+  <!-- ✅ Todo lo “exigido por Central” lo pongo en un perfil release -->
+  <profiles>
+    <profile>
+      <id>release</id>
+      <build>
         <plugins>
-            <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
+
+          <!-- Sources jar -->
+          <plugin>
+            <artifactId>maven-source-plugin</artifactId>
+            <version>${maven.source.plugin.version}</version>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>jar-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+
+          <!-- Javadoc jar -->
+          <plugin>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <version>${maven.javadoc.plugin.version}</version>
+            <configuration>
+              <failOnError>false</failOnError>
+            </configuration>
+            <executions>
+              <execution>
+                <id>attach-javadocs</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+
+          <!-- GPG signing -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>${maven.gpg.plugin.version}</version>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>sign</goal>
+                </goals>
                 <configuration>
-                    <archive>
-                        <manifest>
-                            <mainClass>fully.qualified.MainClass</mainClass>
-                        </manifest>
-                    </archive>
-                    <descriptorRefs>
-                        <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
+                  <gpgArguments>
+                    <arg>--pinentry-mode</arg>
+                    <arg>loopback</arg>
+                  </gpgArguments>
+                  <!-- Si algún día pones passphrase:
+                  <passphrase>${gpg.passphrase}</passphrase>
+                  -->
                 </configuration>
-            </plugin>
+              </execution>
+            </executions>
+          </plugin>
+
         </plugins>
-    </build>
+      </build>
+    </profile>
+  </profiles>
 
 </project>

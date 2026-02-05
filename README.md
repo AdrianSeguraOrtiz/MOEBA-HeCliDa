@@ -2,6 +2,71 @@
 
 **MOEBA-BIO (Multi-Objective Evolutionary Biclustering Algorithm for BIOmedical applications)** is a software project whose java implementation is aimed at making possible a better use of the information of the biological domain of biclustering problems in order to maximise learning during the execution of the algorithm and to achieve its expansion to questions not dealt with by other proposals. The information provided by the data's belonging to a specific biological domain (e.g., gene co-expression, clinical patient analysis, medical image segmentation, etc.) has the potential to enrich the traditional establishment of purely mathematical objectives based on data cohesion within biclusters and their size. However, the representation of individuals traditionally chosen to solve the biclustering problem hinders the effective injection of knowledge by not allowing a direct equivalence between the algorithm's solution and the real problem's solution. **MOEBA-BIO** aims to establish a solid framework to overcome these limitations by implementing several completely novel aspects that allow the inclusion of domain knowledge not only in the algorithm's learning but also in the self-configuration of parameters and self-determination of the number of biclusters.
 
+## Usage
+
+### Runner (main execution)
+`Runner.java` is the main entry point. Build the runnable jar and execute it with the required inputs.
+
+```bash
+mvn -DskipTests package
+java -cp target/moeba-bio-1.0.0-jar-with-dependencies.jar moeba.Runner \
+  --input-dataset path/to/data.csv \
+  --input-column-types path/to/column-types.json \
+  --representation GENERIC \
+  --output-folder output/
+```
+
+Required inputs:
+* `--input-dataset`: CSV dataset to bicluster.
+* `--input-column-types`: JSON with the ordered column names and their data types.
+
+Common optional flags:
+* `--str-fitness-functions`: Objectives separated by `;` (e.g., `BiclusterSizeNormComp;MeanSquaredResidueNorm`).
+* `--str-algorithm`: Algorithm name (e.g., `NSGAII-AsyncParallel`).
+* `--population-size`, `--max-evaluations`, `--num-threads`.
+* `--have-internal-cache`, `--have-external-cache`.
+* `--output-folder`: Folder to store `VAR.csv`, `FUN.csv`, `VAR-translated.csv`, and observer CSVs.
+
+Notes:
+* Use `--specific-num-biclusters` only with `--representation SPECIFIC`.
+* Use `--generic-initial-min-num-bics` and `--generic-initial-max-num-bics` only with `--representation GENERIC`.
+
+### ValidationRunner (validation vs gold standard)
+`ValidationRunner.java` evaluates inferred biclusters against a gold standard. The usual input is the `VAR-translated.csv` produced by `Runner`.
+
+```bash
+java -cp target/moeba-bio-1.0.0-jar-with-dependencies.jar moeba.validation.ValidationRunner \
+  --inferred-translated output/VAR-translated.csv \
+  --gold-standard-translated path/to/gold-standard.csv \
+  --representation GENERIC \
+  --validation-metrics ScorePrelicRelevance;ScorePrelicRecovery;ScoreDice \
+  --output-file output/scores.csv
+```
+
+Common optional flags:
+* `--save-process`: Stores the validation process and compresses it to `process.zip` next to the output file.
+* `--num-threads`: Number of threads for metric computation.
+
+## Maven Central
+
+Use MOEBA-BIO as a dependency from Maven Central:
+
+```xml
+<dependency>
+  <groupId>io.github.adrianseguraortiz</groupId>
+  <artifactId>moeba-bio</artifactId>
+  <version>1.0.0</version>
+</dependency>
+```
+
+Gradle (Kotlin DSL):
+
+```kotlin
+dependencies {
+    implementation("io.github.adrianseguraortiz:moeba-bio:1.0.0")
+}
+```
+
 ## Representation
 
 The usual representation applied to the biclustering problem is one where each individual represents a bicluster by specifying the rows and columns that comprise it. This approach highlights two main drawbacks:
