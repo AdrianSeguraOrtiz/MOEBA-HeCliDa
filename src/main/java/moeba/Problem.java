@@ -55,7 +55,18 @@ public class Problem extends AbstractMixedIntegerBinaryProblem {
         // Initialize fitness functions based on provided string identifiers
         this.fitnessFunctions = new FitnessFunction[strFitnessFunctions.length];
         for (int i = 0; i < strFitnessFunctions.length; i++) {
-            this.fitnessFunctions[i] = StaticUtils.getFitnessFunctionFromString(strFitnessFunctions[i], this.data, this.types, internalCaches == null ? null : internalCaches[i], representationWrapper.getSummariseMethod());
+            StaticUtils.ObjectiveDefinition objectiveDefinition = StaticUtils.getObjectiveDefinitionFromString(strFitnessFunctions[i]);
+            representationWrapper.validateFitnessFunctionType(
+                strFitnessFunctions[i],
+                objectiveDefinition.getFitnessFunctionType()
+            );
+            this.fitnessFunctions[i] = objectiveDefinition.create(
+                strFitnessFunctions[i],
+                this.data,
+                this.types,
+                internalCaches == null ? null : internalCaches[i],
+                representationWrapper.getSummariseMethod()
+            );
         }
 
         // Configure the problem's parameters

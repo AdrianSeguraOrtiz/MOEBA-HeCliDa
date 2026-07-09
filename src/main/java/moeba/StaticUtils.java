@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -32,6 +33,9 @@ import moeba.algorithm.AsyncMultiThreadGAParents;
 import moeba.algorithm.AsyncMultiThreadNSGAIIParents;
 import moeba.algorithm.AsyncMultiThreadNSGAIIParentsExternalFile;
 import moeba.fitnessfunction.FitnessFunction;
+import moeba.fitnessfunction.GenericBiclusterFitnessFunction;
+import moeba.fitnessfunction.GlobalFitnessFunction;
+import moeba.fitnessfunction.IndividualBiclusterFitnessFunction;
 import moeba.fitnessfunction.impl.BiclusterSizeNormComp;
 import moeba.fitnessfunction.impl.BiclusterSizeNumBicsNormComp;
 import moeba.fitnessfunction.impl.BiclusterVarianceNorm;
@@ -116,50 +120,102 @@ public final class StaticUtils {
         }
     }
 
-    static final Map<String, BiFunction<String, ObjectivesParams, FitnessFunction>> OBJETIVES_MAP = new HashMap<>();
+    public static final class ObjectiveDefinition {
+        private final String identifier;
+        private final Class<? extends FitnessFunction> fitnessFunctionType;
+        private final BiFunction<String, ObjectivesParams, FitnessFunction> factory;
+
+        private ObjectiveDefinition(
+            String identifier,
+            Class<? extends FitnessFunction> fitnessFunctionType,
+            BiFunction<String, ObjectivesParams, FitnessFunction> factory
+        ) {
+            this.identifier = identifier;
+            this.fitnessFunctionType = fitnessFunctionType;
+            this.factory = factory;
+        }
+
+        public String getIdentifier() {
+            return identifier;
+        }
+
+        public Class<? extends FitnessFunction> getFitnessFunctionType() {
+            return fitnessFunctionType;
+        }
+
+        private boolean matches(String str) {
+            return str.toLowerCase().startsWith(identifier);
+        }
+
+        public FitnessFunction create(String str, double[][] data, Class<?>[] types, CacheStorage<String, Double> cache, String summariseIndividualObjectives) {
+            return create(str, new ObjectivesParams(data, types, cache, summariseIndividualObjectives));
+        }
+
+        private FitnessFunction create(String str, ObjectivesParams op) {
+            return factory.apply(str, op);
+        }
+    }
+
+    static final Map<String, ObjectiveDefinition> OBJECTIVES_MAP = new LinkedHashMap<>();
     static {
-        OBJETIVES_MAP.put("biclustersizenormcomp", (str, op) -> {
+        OBJECTIVES_MAP.put("biclustersizenormcomp", new ObjectiveDefinition("biclustersizenormcomp", IndividualBiclusterFitnessFunction.class, (str, op) -> {
             Map<String, String> subParams = getSubParams("biclustersizenormcomp", str);
             String sumIndObjs = StaticUtils.getOne("biclustersizenormcomp", subParams, "summariseindividualobjectives", op.summariseIndividualObjectives);
             Double rowsWeight = Double.parseDouble(StaticUtils.getOne("biclustersizenormcomp", subParams, "rowsweight", "0.5"));
             return new BiclusterSizeNormComp(op.data, op.types, op.cache, sumIndObjs, rowsWeight);
-        });
+        }));
 
-        OBJETIVES_MAP.put("biclustervariancenorm", (str, op) -> {
+        OBJECTIVES_MAP.put("biclustervariancenorm", new ObjectiveDefinition("biclustervariancenorm", IndividualBiclusterFitnessFunction.class, (str, op) -> {
             Map<String, String> subParams = getSubParams("biclustervariancenorm", str);
             String sumIndObjs = StaticUtils.getOne("biclustervariancenorm", subParams, "summariseindividualobjectives", op.summariseIndividualObjectives);
             return new BiclusterVarianceNorm(op.data, op.types, op.cache, sumIndObjs);
-        });
+        }));
 
-        OBJETIVES_MAP.put("rowvariancenormcomp", (str, op) -> {
+        OBJECTIVES_MAP.put("rowvariancenormcomp", new ObjectiveDefinition("rowvariancenormcomp", IndividualBiclusterFitnessFunction.class, (str, op) -> {
             Map<String, String> subParams = getSubParams("rowvariancenormcomp", str);
             String sumIndObjs = StaticUtils.getOne("rowvariancenormcomp", subParams, "summariseindividualobjectives", op.summariseIndividualObjectives);
             return new RowVarianceNormComp(op.data, op.types, op.cache, sumIndObjs);
-        });
+        }));
 
-        OBJETIVES_MAP.put("meansquaredresiduenorm", (str, op) -> {
+        OBJECTIVES_MAP.put("meansquaredresiduenorm", new ObjectiveDefinition("meansquaredresiduenorm", IndividualBiclusterFitnessFunction.class, (str, op) -> {
             Map<String, String> subParams = getSubParams("meansquaredresiduenorm", str);
             String sumIndObjs = StaticUtils.getOne("meansquaredresiduenorm", subParams, "summariseindividualobjectives", op.summariseIndividualObjectives);
             return new MeanSquaredResidueNorm(op.data, op.types, op.cache, sumIndObjs);
-        });
+        }));
 
-        OBJETIVES_MAP.put("distancebetweenbiclustersnormcomp", (str, op) -> {
+        OBJECTIVES_MAP.put("distancebetweenbiclustersnormcomp", new ObjectiveDefinition("distancebetweenbiclustersnormcomp", GenericBiclusterFitnessFunction.class, (str, op) -> {
             Map<String, String> subParams = getSubParams("distancebetweenbiclustersnormcomp", str);
             String sumIndObjs = StaticUtils.getOne("distancebetweenbiclustersnormcomp", subParams, "summariseindividualobjectives", op.summariseIndividualObjectives);
             return new DistanceBetweenBiclustersNormComp(op.data, op.types, op.cache, sumIndObjs);
-        });
+        }));
 
-        OBJETIVES_MAP.put("regulatorycoherencenormcomp", (str, op) -> {
+        OBJECTIVES_MAP.put("regulatorycoherencenormcomp", new ObjectiveDefinition("regulatorycoherencenormcomp", GlobalFitnessFunction.class, (str, op) -> {
             return new RegulatoryCoherenceNormComp(op.data, op.types);
-        });
+        }));
 
-        OBJETIVES_MAP.put("biclustersizenumbicsnormcomp", (str, op) -> {
+        OBJECTIVES_MAP.put("biclustersizenumbicsnormcomp", new ObjectiveDefinition("biclustersizenumbicsnormcomp", GenericBiclusterFitnessFunction.class, (str, op) -> {
             Map<String, String> subParams = getSubParams("biclustersizenumbicsnormcomp", str);
             String sumIndObjs = StaticUtils.getOne("biclustersizenumbicsnormcomp", subParams, "summariseindividualobjectives", op.summariseIndividualObjectives);
             Double rowsWeight = Double.parseDouble(StaticUtils.getOne("biclustersizenumbicsnormcomp", subParams, "rowsweight", "0.5"));
             double coherenceWeight = Double.parseDouble(StaticUtils.getOne("biclustersizenumbicsnormcomp", subParams, "coherenceweight", "0.5"));
             return new BiclusterSizeNumBicsNormComp(op.data, op.types, op.cache, sumIndObjs, rowsWeight, coherenceWeight);
-        });
+        }));
+    }
+
+    /**
+     * Returns the objective definition matching a given identifier string.
+     *
+     * @param str the identifier string for the fitness function
+     * @return the objective definition
+     * @throws RuntimeException if the fitness function is not implemented
+     */
+    public static ObjectiveDefinition getObjectiveDefinitionFromString(String str) {
+        for (ObjectiveDefinition definition : OBJECTIVES_MAP.values()) {
+            if (definition.matches(str)) {
+                return definition;
+            }
+        }
+        throw new RuntimeException("Fitness function not implemented: " + str);
     }
 
     /**
@@ -174,25 +230,7 @@ public final class StaticUtils {
      * @throws RuntimeException if the fitness function is not implemented
      */
     public static FitnessFunction getFitnessFunctionFromString(String str, double[][] data, Class<?>[] types, CacheStorage<String, Double> cache, String summariseIndividualObjectives) {
-        // Create an ObjectivesParams object with the given data, types and cache
-        ObjectivesParams op = new ObjectivesParams(data, types, cache, summariseIndividualObjectives);
-
-        // Iterate over the entries in the OBJETIVES_MAP
-        FitnessFunction res = null;
-        for (Map.Entry<String, BiFunction<String, ObjectivesParams, FitnessFunction>> entry : OBJETIVES_MAP.entrySet()) {
-            if (str.toLowerCase().startsWith(entry.getKey())) {
-                res = entry.getValue().apply(str, op);
-                break;
-            }
-        }
-
-        // If no matching fitness function is found, throw a RuntimeException
-        if (res == null) {
-            throw new RuntimeException("Fitness function not implemented: " + str);
-        }
-
-        // Return the found fitness function
-        return res;
+        return getObjectiveDefinitionFromString(str).create(str, data, types, cache, summariseIndividualObjectives);
     }
 
     /**

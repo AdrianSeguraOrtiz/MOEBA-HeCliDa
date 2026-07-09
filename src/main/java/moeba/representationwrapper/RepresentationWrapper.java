@@ -1,7 +1,9 @@
 package moeba.representationwrapper;
 
 import java.util.ArrayList;
+import java.util.Set;
 
+import moeba.fitnessfunction.FitnessFunction;
 import org.uma.jmetal.operator.crossover.CrossoverOperator;
 import org.uma.jmetal.operator.mutation.MutationOperator;
 import org.uma.jmetal.solution.binarysolution.BinarySolution;
@@ -29,9 +31,36 @@ public abstract class RepresentationWrapper {
     public abstract ArrayList<ArrayList<Integer>[]> getBiclustersFromRepresentation(CompositeSolution solution);
     public abstract String getDefaultCrossoverOperator();
     public abstract String getDefaultMutationOperator();
+    public abstract Set<Class<? extends FitnessFunction>> getSupportedFitnessFunctionTypes();
     public abstract CrossoverOperator<CompositeSolution> getCrossoverFromString(String strCrossoverOperator, double crossoverProbability, int numApproxCrossovers);
     public abstract MutationOperator<CompositeSolution> getMutationFromString(String strMutationOperator, String mutationProbability, int numApproxMutations);
 
     public abstract String[] getVarLabels();
     public abstract String getSummariseMethod();
+
+    public boolean supportsFitnessFunctionType(Class<? extends FitnessFunction> fitnessFunctionType) {
+        for (Class<? extends FitnessFunction> supportedType : getSupportedFitnessFunctionTypes()) {
+            if (supportedType.isAssignableFrom(fitnessFunctionType)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void validateFitnessFunctionType(String fitnessFunction, Class<? extends FitnessFunction> fitnessFunctionType) {
+        if (!supportsFitnessFunctionType(fitnessFunctionType)) {
+            throw new IllegalArgumentException(
+                "Objective " + fitnessFunction + " (" + fitnessFunctionType.getSimpleName() + ") is not compatible with " +
+                getClass().getSimpleName() + ". Supported objective types: " + getSupportedFitnessFunctionTypeNames() + "."
+            );
+        }
+    }
+
+    private String getSupportedFitnessFunctionTypeNames() {
+        ArrayList<String> names = new ArrayList<>();
+        for (Class<? extends FitnessFunction> supportedType : getSupportedFitnessFunctionTypes()) {
+            names.add(supportedType.getSimpleName());
+        }
+        return String.join(", ", names);
+    }
 }

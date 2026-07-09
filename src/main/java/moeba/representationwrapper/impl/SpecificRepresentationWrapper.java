@@ -2,7 +2,12 @@ package moeba.representationwrapper.impl;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Set;
 
+import moeba.fitnessfunction.FitnessFunction;
+import moeba.fitnessfunction.GenericBiclusterFitnessFunction;
+import moeba.fitnessfunction.GlobalFitnessFunction;
+import moeba.fitnessfunction.IndividualBiclusterFitnessFunction;
 import moeba.representationwrapper.RepresentationWrapper;
 import org.uma.jmetal.operator.crossover.CrossoverOperator;
 import org.uma.jmetal.operator.mutation.MutationOperator;
@@ -11,6 +16,13 @@ import org.uma.jmetal.solution.compositesolution.CompositeSolution;
 import org.uma.jmetal.solution.integersolution.IntegerSolution;
 
 public class SpecificRepresentationWrapper extends RepresentationWrapper {
+    private static final Set<Class<? extends FitnessFunction>> SUPPORTED_FITNESS_FUNCTION_TYPES =
+        Set.<Class<? extends FitnessFunction>>of(
+            IndividualBiclusterFitnessFunction.class,
+            GenericBiclusterFitnessFunction.class,
+            GlobalFitnessFunction.class
+        );
+
     private int numBiclusters;
     private String summariseIndividualObjectives;
 
@@ -77,6 +89,11 @@ public class SpecificRepresentationWrapper extends RepresentationWrapper {
     @Override
     public String getDefaultMutationOperator() {
         throw new IllegalArgumentException("No default mutation operator is configured for SPECIFIC representation. Use --mutation-operator explicitly.");
+    }
+
+    @Override
+    public Set<Class<? extends FitnessFunction>> getSupportedFitnessFunctionTypes() {
+        return SUPPORTED_FITNESS_FUNCTION_TYPES;
     }
 
     @Override

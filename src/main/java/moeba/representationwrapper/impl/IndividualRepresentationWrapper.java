@@ -2,7 +2,10 @@ package moeba.representationwrapper.impl;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Set;
 
+import moeba.fitnessfunction.FitnessFunction;
+import moeba.fitnessfunction.IndividualBiclusterFitnessFunction;
 import moeba.operator.crossover.individual.IndividualCrossover;
 import moeba.operator.crossover.individual.rowcolbinary.RowColBinaryCrossover;
 import moeba.operator.crossover.individual.rowcolbinary.impl.RowColUniformCrossover;
@@ -20,6 +23,8 @@ import org.uma.jmetal.util.binarySet.BinarySet;
 public class IndividualRepresentationWrapper extends RepresentationWrapper {
     private static final String DEFAULT_CROSSOVER_OPERATOR = "RowColUniformCrossover";
     private static final String DEFAULT_MUTATION_OPERATOR = "RowColUniformMutation";
+    private static final Set<Class<? extends FitnessFunction>> SUPPORTED_FITNESS_FUNCTION_TYPES =
+        Set.<Class<? extends FitnessFunction>>of(IndividualBiclusterFitnessFunction.class);
 
     public IndividualRepresentationWrapper(int numRows, int numColumns) {
         super(numRows, numColumns);
@@ -115,6 +120,11 @@ public class IndividualRepresentationWrapper extends RepresentationWrapper {
     @Override
     public String getDefaultMutationOperator() {
         return DEFAULT_MUTATION_OPERATOR;
+    }
+
+    @Override
+    public Set<Class<? extends FitnessFunction>> getSupportedFitnessFunctionTypes() {
+        return SUPPORTED_FITNESS_FUNCTION_TYPES;
     }
 
     @Override

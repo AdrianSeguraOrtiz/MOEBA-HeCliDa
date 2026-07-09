@@ -6,12 +6,17 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.Map;
 import java.util.LinkedHashMap;
 
 import moeba.StaticUtils;
+import moeba.fitnessfunction.FitnessFunction;
+import moeba.fitnessfunction.GenericBiclusterFitnessFunction;
+import moeba.fitnessfunction.GlobalFitnessFunction;
+import moeba.fitnessfunction.IndividualBiclusterFitnessFunction;
 import moeba.operator.crossover.generic.GenericCrossover;
 import moeba.operator.crossover.generic.biclusterbinary.BiclusterBinaryCrossover;
 import moeba.operator.crossover.generic.biclusterbinary.impl.BicUniformCrossover;
@@ -41,6 +46,12 @@ import org.uma.jmetal.util.binarySet.BinarySet;
 public class GenericRepresentationWrapper extends RepresentationWrapper {
     private static final String DEFAULT_CROSSOVER_OPERATOR = "GroupedBasedCrossover;CellUniformCrossover";
     private static final String DEFAULT_MUTATION_OPERATOR = "SwapMutation;BicUniformMutation;CellUniformMutation";
+    private static final Set<Class<? extends FitnessFunction>> SUPPORTED_FITNESS_FUNCTION_TYPES =
+        Set.<Class<? extends FitnessFunction>>of(
+            IndividualBiclusterFitnessFunction.class,
+            GenericBiclusterFitnessFunction.class,
+            GlobalFitnessFunction.class
+        );
 
     private float genericInitialMinPercBics;
     private float genericInitialMaxPercBics;
@@ -211,6 +222,11 @@ public class GenericRepresentationWrapper extends RepresentationWrapper {
     @Override
     public String getDefaultMutationOperator() {
         return DEFAULT_MUTATION_OPERATOR;
+    }
+
+    @Override
+    public Set<Class<? extends FitnessFunction>> getSupportedFitnessFunctionTypes() {
+        return SUPPORTED_FITNESS_FUNCTION_TYPES;
     }
 
     @Override

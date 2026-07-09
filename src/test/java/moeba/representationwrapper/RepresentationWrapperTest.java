@@ -1,12 +1,19 @@
 package moeba.representationwrapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import moeba.fitnessfunction.GenericBiclusterFitnessFunction;
+import moeba.fitnessfunction.GlobalFitnessFunction;
+import moeba.fitnessfunction.IndividualBiclusterFitnessFunction;
 import moeba.representationwrapper.impl.GenericRepresentationWrapper;
+import moeba.representationwrapper.impl.IndividualRepresentationWrapper;
+import moeba.representationwrapper.impl.SpecificRepresentationWrapper;
 import org.junit.jupiter.api.Test;
 import org.uma.jmetal.solution.binarysolution.BinarySolution;
 import org.uma.jmetal.solution.binarysolution.impl.DefaultBinarySolution;
@@ -17,6 +24,29 @@ import org.uma.jmetal.util.binarySet.BinarySet;
 import org.uma.jmetal.util.bounds.Bounds;
 
 public class RepresentationWrapperTest {
+
+    @Test
+    void individualRepresentationOnlySupportsIndividualBiclusterObjectives() {
+        IndividualRepresentationWrapper wrapper = new IndividualRepresentationWrapper(8, 8);
+
+        assertTrue(wrapper.supportsFitnessFunctionType(IndividualBiclusterFitnessFunction.class));
+        assertFalse(wrapper.supportsFitnessFunctionType(GenericBiclusterFitnessFunction.class));
+        assertFalse(wrapper.supportsFitnessFunctionType(GlobalFitnessFunction.class));
+    }
+
+    @Test
+    void multiBiclusterRepresentationsSupportIndividualGenericAndGlobalObjectives() {
+        GenericRepresentationWrapper genericWrapper = new GenericRepresentationWrapper(8, 8, 0.05f, 0.2f, "Mean");
+        SpecificRepresentationWrapper specificWrapper = new SpecificRepresentationWrapper(8, 8, 3, "Mean");
+
+        assertTrue(genericWrapper.supportsFitnessFunctionType(IndividualBiclusterFitnessFunction.class));
+        assertTrue(genericWrapper.supportsFitnessFunctionType(GenericBiclusterFitnessFunction.class));
+        assertTrue(genericWrapper.supportsFitnessFunctionType(GlobalFitnessFunction.class));
+
+        assertTrue(specificWrapper.supportsFitnessFunctionType(IndividualBiclusterFitnessFunction.class));
+        assertTrue(specificWrapper.supportsFitnessFunctionType(GenericBiclusterFitnessFunction.class));
+        assertTrue(specificWrapper.supportsFitnessFunctionType(GlobalFitnessFunction.class));
+    }
     
     @Test
     public void testGetBiclustersFromGenericRepresentation() {
