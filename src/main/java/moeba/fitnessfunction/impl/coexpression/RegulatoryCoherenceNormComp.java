@@ -2,6 +2,7 @@ package moeba.fitnessfunction.impl.coexpression;
 
 import java.util.ArrayList;
 
+import moeba.ColumnType;
 import moeba.fitnessfunction.GlobalFitnessFunction;
 import moeba.utils.coexpression.GeneRegulatoryNetwork;
 
@@ -21,29 +22,12 @@ public class RegulatoryCoherenceNormComp extends GlobalFitnessFunction {
      * 
      * @param data A 2D double array representing the gene expression data, where rows correspond to genes
      *             and columns correspond to conditions or samples.
-     * @param types An array of Class objects representing the data types of the columns. All types must be numeric.
-     * @throws IllegalArgumentException if any of the provided types are not numeric.
+     * @param types An array representing the semantic data types of the columns.
      */
-    public RegulatoryCoherenceNormComp(double[][] data, Class<?>[] types) {
+    public RegulatoryCoherenceNormComp(double[][] data, ColumnType[] types) {
         super(data, types);
-        checkTypes(types);  // Validate the types
         this.regNetwork = new GeneRegulatoryNetwork(data);  // Create the gene regulatory network
         this.func = biclusters -> getRegulatoryCoherence(biclusters);  // Define the fitness function
-    }
-
-    /**
-     * Validates that all the types in the provided array are numeric.
-     * 
-     * @param types An array of Class objects representing the data types to be checked.
-     * @throws IllegalArgumentException if any of the provided types are not numeric.
-     */
-    private void checkTypes(Class<?>[] types) {
-        // Ensure all types are numeric
-        for (Class<?> type : types) {
-            if (!Number.class.isAssignableFrom(type)) {
-                throw new IllegalArgumentException("All types must be numeric");
-            }
-        }
     }
 
     /**
@@ -94,4 +78,3 @@ public class RegulatoryCoherenceNormComp extends GlobalFitnessFunction {
         return 1 - (mod + 1) / 2;
     }
 }
-

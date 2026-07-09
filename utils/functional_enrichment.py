@@ -11,6 +11,13 @@ from biclustlib.models import Biclustering, Bicluster
 INPUT_FOLDER = "biclustlib_benchmark_data"
 OUTPUT_FOLDER = "exp6-functional-enrichment"
 
+def get_moeba_column_type(dtype):
+    if pd.api.types.is_bool_dtype(dtype):
+        return {"type": "boolean"}
+    if pd.api.types.is_numeric_dtype(dtype):
+        return {"type": "numeric"}
+    return {"type": "categorical_nominal"}
+
 def store_benchmark_data(benchmarks: list[pd.DataFrame], names: list[str]):
     for i, data in enumerate(benchmarks):
         # 1. Save normalized data to CSV
@@ -18,8 +25,8 @@ def store_benchmark_data(benchmarks: list[pd.DataFrame], names: list[str]):
         normalized_data = pd.DataFrame(scaler.fit_transform(data))
         normalized_data.to_csv(f"{INPUT_FOLDER}/{names[i]}-data.csv", index=False)
         
-        # 2. Save the data types dictionary as JSON
-        column_data_types = {col: str(dtype) for col, dtype in normalized_data.dtypes.items()}
+        # 2. Save the MOEBA-BIO semantic column types as JSON
+        column_data_types = {col: get_moeba_column_type(dtype) for col, dtype in normalized_data.dtypes.items()}
         with open(f"{INPUT_FOLDER}/{names[i]}-types.json", "w") as file:
             json.dump(column_data_types, file, indent=4, ensure_ascii=False)
 

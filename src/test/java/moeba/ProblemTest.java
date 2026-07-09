@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Arrays;
+
 import moeba.representationwrapper.impl.GenericRepresentationWrapper;
 import moeba.representationwrapper.impl.IndividualRepresentationWrapper;
 import org.junit.jupiter.api.Test;
@@ -15,7 +17,18 @@ class ProblemTest {
         {0.7, 0.8, 0.5, 0.1},
         {0.2, 0.3, 0.8, 0.6}
     };
-    private final Class<?>[] numericTypes = new Class<?>[] {Float.class, Float.class, Float.class, Float.class};
+    private final ColumnType[] numericTypes = new ColumnType[] {
+        ColumnType.numeric(),
+        ColumnType.numeric(),
+        ColumnType.numeric(),
+        ColumnType.numeric()
+    };
+    private final ColumnType[] mixedTypes = new ColumnType[] {
+        ColumnType.numeric(),
+        ColumnType.categoricalNominal(),
+        ColumnType.bool(),
+        ColumnType.categoricalOrdinal(Arrays.asList("low", "high"))
+    };
 
     @Test
     void individualRepresentationAcceptsIndividualBiclusterObjectives() {
@@ -50,13 +63,11 @@ class ProblemTest {
 
     @Test
     void individualRepresentationRejectsGlobalObjectivesBeforeConstructingThem() {
-        Class<?>[] nonNumericTypes = new Class<?>[] {String.class, String.class, String.class, String.class};
-
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,
             () -> new Problem(
                 data,
-                nonNumericTypes,
+                mixedTypes,
                 new String[] {"RegulatoryCoherenceNormComp"},
                 null,
                 null,
@@ -79,5 +90,55 @@ class ProblemTest {
             null,
             new GenericRepresentationWrapper(4, 4, 0.05f, 0.25f, "Mean")
         ));
+    }
+
+    @Test
+    void structuralObjectivesAcceptMixedColumnTypes() {
+        assertDoesNotThrow(() -> new Problem(
+            data,
+            mixedTypes,
+            new String[] {"BiclusterSizeNormComp(summariseIndividualObjectives=Mean,rowsWeight=0.5)"},
+            null,
+            null,
+            new IndividualRepresentationWrapper(4, 4)
+        ));
+    }
+
+    @Test
+    void numericObjectivesRejectNonNumericColumnTypes() {
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> new Problem(
+                data,
+                mixedTypes,
+                new String[] {"BiclusterVarianceNorm"},
+                null,
+                null,
+                new IndividualRepresentationWrapper(4, 4)
+            )
+        );
+
+        assertTrue(exception.getMessage().contains("BiclusterVarianceNorm"));
+        assertTrue(exception.getMessage().contains("CATEGORICAL_NOMINAL"));
+        assertTrue(exception.getMessage().contains("NUMERIC"));
+    }
+
+    @Test
+    void globalNumericObjectivesUseCentralizedColumnTypeValidation() {
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> new Problem(
+                data,
+                mixedTypes,
+                new String[] {"RegulatoryCoherenceNormComp"},
+                null,
+                null,
+                new GenericRepresentationWrapper(4, 4, 0.05f, 0.25f, "Mean")
+            )
+        );
+
+        assertTrue(exception.getMessage().contains("RegulatoryCoherenceNormComp"));
+        assertTrue(exception.getMessage().contains("CATEGORICAL_NOMINAL"));
+        assertTrue(exception.getMessage().contains("NUMERIC"));
     }
 }

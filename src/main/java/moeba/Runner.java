@@ -42,7 +42,7 @@ public class Runner extends AbstractAlgorithmRunner implements Runnable {
     @Option(names = {"--input-dataset"}, description = "Path to the input CSV dataset on which you want to perform biclustering", required = true)
     private File inputDataset;
 
-    @Option(names = {"--input-column-types"}, description = "Path to the input JSON file which specifies the names of the columns in order and the type of data of each of them", required = true)
+    @Option(names = {"--input-column-types"}, description = "Path to the input JSON file which maps each CSV column name to a semantic column type", required = true)
     private File inputColumnTypes;
 
     @Option(names = {"--representation"}, description = "Representation as a string. Possible values: GENERIC, SPECIFIC, INDIVIDUAL, DYNAMIC", defaultValue = "GENERIC")
@@ -176,9 +176,9 @@ public class Runner extends AbstractAlgorithmRunner implements Runnable {
         }
 
         // Read column types
-        Class<?>[] types = null;
+        ColumnType[] types = null;
         try {
-            types = StaticUtils.jsonToClassArray(inputColumnTypes, columnNames);
+            types = StaticUtils.jsonToColumnTypes(inputColumnTypes, columnNames);
         } catch (IOException e) {
             e.printStackTrace();
         }

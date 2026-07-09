@@ -2,16 +2,18 @@ package moeba.fitnessfunction;
 
 import java.util.ArrayList;
 
+import moeba.ColumnType;
+
 public abstract class FitnessFunction {
     protected double[][] data;
-    protected Class<?>[] types;
+    protected ColumnType[] types;
     protected RunnableFunc func;
 
     public interface RunnableFunc {
         double run(ArrayList<ArrayList<Integer>[]> biclusters);
     }
 
-    public FitnessFunction(double[][] data, Class<?>[] types) {
+    public FitnessFunction(double[][] data, ColumnType[] types) {
         this.data = data;
         this.types = types;
     }

@@ -2,12 +2,13 @@ package moeba.fitnessfunction.impl;
 
 import java.util.ArrayList;
 
+import moeba.ColumnType;
 import moeba.fitnessfunction.GenericBiclusterFitnessFunction;
 import moeba.utils.storage.CacheStorage;
 
 public class DistanceBetweenBiclustersNormComp extends GenericBiclusterFitnessFunction {
 
-    public DistanceBetweenBiclustersNormComp(double[][] data, Class<?>[] types,
+    public DistanceBetweenBiclustersNormComp(double[][] data, ColumnType[] types,
             CacheStorage<String, Double> internalCache, String summariseIndividualObjectives) {
         super(data, types, internalCache, summariseIndividualObjectives);
     }

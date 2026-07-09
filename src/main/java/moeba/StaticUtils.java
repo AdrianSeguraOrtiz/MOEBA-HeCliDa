@@ -1,6 +1,6 @@
 package moeba;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.BufferedReader;
@@ -16,9 +16,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -29,7 +31,10 @@ import java.util.jar.JarFile;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.Enumeration;
+import java.util.Iterator;
 
 import moeba.algorithm.AsyncMultiThreadGAParents;
 import moeba.algorithm.AsyncMultiThreadNSGAIIParents;
@@ -109,15 +114,16 @@ import org.uma.jmetal.problem.Problem;
 public final class StaticUtils {
     private static final int NUMERIC_COLUMN = 0;
     private static final int BOOLEAN_COLUMN = 1;
-    private static final int CATEGORICAL_COLUMN = 2;
+    private static final int CATEGORICAL_NOMINAL_COLUMN = 2;
+    private static final int CATEGORICAL_ORDINAL_COLUMN = 3;
 
     private static class ObjectivesParams {
         public double[][] data;
-        public Class<?>[] types;
+        public ColumnType[] types;
         public CacheStorage<String, Double> cache;
         public String summariseIndividualObjectives;
 
-        public ObjectivesParams(double[][] data, Class<?>[] types, CacheStorage<String, Double> cache, String summariseIndividualObjectives) {
+        public ObjectivesParams(double[][] data, ColumnType[] types, CacheStorage<String, Double> cache, String summariseIndividualObjectives) {
             this.data = data;
             this.types = types;
             this.cache = cache;
@@ -128,15 +134,20 @@ public final class StaticUtils {
     public static final class ObjectiveDefinition {
         private final String identifier;
         private final Class<? extends FitnessFunction> fitnessFunctionType;
+        private final Set<ColumnKind> supportedColumnKinds;
         private final BiFunction<String, ObjectivesParams, FitnessFunction> factory;
 
         private ObjectiveDefinition(
             String identifier,
             Class<? extends FitnessFunction> fitnessFunctionType,
+            Set<ColumnKind> supportedColumnKinds,
             BiFunction<String, ObjectivesParams, FitnessFunction> factory
         ) {
             this.identifier = identifier;
             this.fitnessFunctionType = fitnessFunctionType;
+            this.supportedColumnKinds = supportedColumnKinds == null || supportedColumnKinds.isEmpty()
+                ? EnumSet.allOf(ColumnKind.class)
+                : EnumSet.copyOf(supportedColumnKinds);
             this.factory = factory;
         }
 
@@ -152,59 +163,87 @@ public final class StaticUtils {
             return str.toLowerCase().startsWith(identifier);
         }
 
-        public FitnessFunction create(String str, double[][] data, Class<?>[] types, CacheStorage<String, Double> cache, String summariseIndividualObjectives) {
+        public FitnessFunction create(String str, double[][] data, ColumnType[] types, CacheStorage<String, Double> cache, String summariseIndividualObjectives) {
             return create(str, new ObjectivesParams(data, types, cache, summariseIndividualObjectives));
         }
 
         private FitnessFunction create(String str, ObjectivesParams op) {
+            validateColumnTypes(str, op.types);
             return factory.apply(str, op);
+        }
+
+        private void validateColumnTypes(String str, ColumnType[] types) {
+            if (types == null) {
+                throw new IllegalArgumentException("Objective " + str + " requires column types.");
+            }
+
+            for (int i = 0; i < types.length; i++) {
+                if (types[i] == null) {
+                    throw new IllegalArgumentException("Column type at index " + i + " is null.");
+                }
+                ColumnKind kind = types[i].getKind();
+                if (!supportedColumnKinds.contains(kind)) {
+                    throw new IllegalArgumentException(
+                        "Objective " + str + " does not support column " + i + " with type " + kind +
+                        ". Supported column types: " + supportedColumnKinds + "."
+                    );
+                }
+            }
         }
     }
 
     static final Map<String, ObjectiveDefinition> OBJECTIVES_MAP = new LinkedHashMap<>();
     static {
-        OBJECTIVES_MAP.put("biclustersizenormcomp", new ObjectiveDefinition("biclustersizenormcomp", IndividualBiclusterFitnessFunction.class, (str, op) -> {
+        OBJECTIVES_MAP.put("biclustersizenormcomp", new ObjectiveDefinition("biclustersizenormcomp", IndividualBiclusterFitnessFunction.class, allColumnKinds(), (str, op) -> {
             Map<String, String> subParams = getSubParams("biclustersizenormcomp", str);
             String sumIndObjs = StaticUtils.getOne("biclustersizenormcomp", subParams, "summariseindividualobjectives", op.summariseIndividualObjectives);
             Double rowsWeight = Double.parseDouble(StaticUtils.getOne("biclustersizenormcomp", subParams, "rowsweight", "0.5"));
             return new BiclusterSizeNormComp(op.data, op.types, op.cache, sumIndObjs, rowsWeight);
         }));
 
-        OBJECTIVES_MAP.put("biclustervariancenorm", new ObjectiveDefinition("biclustervariancenorm", IndividualBiclusterFitnessFunction.class, (str, op) -> {
+        OBJECTIVES_MAP.put("biclustervariancenorm", new ObjectiveDefinition("biclustervariancenorm", IndividualBiclusterFitnessFunction.class, numericColumnKinds(), (str, op) -> {
             Map<String, String> subParams = getSubParams("biclustervariancenorm", str);
             String sumIndObjs = StaticUtils.getOne("biclustervariancenorm", subParams, "summariseindividualobjectives", op.summariseIndividualObjectives);
             return new BiclusterVarianceNorm(op.data, op.types, op.cache, sumIndObjs);
         }));
 
-        OBJECTIVES_MAP.put("rowvariancenormcomp", new ObjectiveDefinition("rowvariancenormcomp", IndividualBiclusterFitnessFunction.class, (str, op) -> {
+        OBJECTIVES_MAP.put("rowvariancenormcomp", new ObjectiveDefinition("rowvariancenormcomp", IndividualBiclusterFitnessFunction.class, numericColumnKinds(), (str, op) -> {
             Map<String, String> subParams = getSubParams("rowvariancenormcomp", str);
             String sumIndObjs = StaticUtils.getOne("rowvariancenormcomp", subParams, "summariseindividualobjectives", op.summariseIndividualObjectives);
             return new RowVarianceNormComp(op.data, op.types, op.cache, sumIndObjs);
         }));
 
-        OBJECTIVES_MAP.put("meansquaredresiduenorm", new ObjectiveDefinition("meansquaredresiduenorm", IndividualBiclusterFitnessFunction.class, (str, op) -> {
+        OBJECTIVES_MAP.put("meansquaredresiduenorm", new ObjectiveDefinition("meansquaredresiduenorm", IndividualBiclusterFitnessFunction.class, numericColumnKinds(), (str, op) -> {
             Map<String, String> subParams = getSubParams("meansquaredresiduenorm", str);
             String sumIndObjs = StaticUtils.getOne("meansquaredresiduenorm", subParams, "summariseindividualobjectives", op.summariseIndividualObjectives);
             return new MeanSquaredResidueNorm(op.data, op.types, op.cache, sumIndObjs);
         }));
 
-        OBJECTIVES_MAP.put("distancebetweenbiclustersnormcomp", new ObjectiveDefinition("distancebetweenbiclustersnormcomp", GenericBiclusterFitnessFunction.class, (str, op) -> {
+        OBJECTIVES_MAP.put("distancebetweenbiclustersnormcomp", new ObjectiveDefinition("distancebetweenbiclustersnormcomp", GenericBiclusterFitnessFunction.class, numericColumnKinds(), (str, op) -> {
             Map<String, String> subParams = getSubParams("distancebetweenbiclustersnormcomp", str);
             String sumIndObjs = StaticUtils.getOne("distancebetweenbiclustersnormcomp", subParams, "summariseindividualobjectives", op.summariseIndividualObjectives);
             return new DistanceBetweenBiclustersNormComp(op.data, op.types, op.cache, sumIndObjs);
         }));
 
-        OBJECTIVES_MAP.put("regulatorycoherencenormcomp", new ObjectiveDefinition("regulatorycoherencenormcomp", GlobalFitnessFunction.class, (str, op) -> {
+        OBJECTIVES_MAP.put("regulatorycoherencenormcomp", new ObjectiveDefinition("regulatorycoherencenormcomp", GlobalFitnessFunction.class, numericColumnKinds(), (str, op) -> {
             return new RegulatoryCoherenceNormComp(op.data, op.types);
         }));
 
-        OBJECTIVES_MAP.put("biclustersizenumbicsnormcomp", new ObjectiveDefinition("biclustersizenumbicsnormcomp", GenericBiclusterFitnessFunction.class, (str, op) -> {
+        OBJECTIVES_MAP.put("biclustersizenumbicsnormcomp", new ObjectiveDefinition("biclustersizenumbicsnormcomp", GenericBiclusterFitnessFunction.class, allColumnKinds(), (str, op) -> {
             Map<String, String> subParams = getSubParams("biclustersizenumbicsnormcomp", str);
             String sumIndObjs = StaticUtils.getOne("biclustersizenumbicsnormcomp", subParams, "summariseindividualobjectives", op.summariseIndividualObjectives);
             Double rowsWeight = Double.parseDouble(StaticUtils.getOne("biclustersizenumbicsnormcomp", subParams, "rowsweight", "0.5"));
             double coherenceWeight = Double.parseDouble(StaticUtils.getOne("biclustersizenumbicsnormcomp", subParams, "coherenceweight", "0.5"));
             return new BiclusterSizeNumBicsNormComp(op.data, op.types, op.cache, sumIndObjs, rowsWeight, coherenceWeight);
         }));
+    }
+
+    private static Set<ColumnKind> allColumnKinds() {
+        return EnumSet.allOf(ColumnKind.class);
+    }
+
+    private static Set<ColumnKind> numericColumnKinds() {
+        return EnumSet.of(ColumnKind.NUMERIC);
     }
 
     /**
@@ -234,7 +273,7 @@ public final class StaticUtils {
      * @return a FitnessFunction object
      * @throws RuntimeException if the fitness function is not implemented
      */
-    public static FitnessFunction getFitnessFunctionFromString(String str, double[][] data, Class<?>[] types, CacheStorage<String, Double> cache, String summariseIndividualObjectives) {
+    public static FitnessFunction getFitnessFunctionFromString(String str, double[][] data, ColumnType[] types, CacheStorage<String, Double> cache, String summariseIndividualObjectives) {
         return getObjectiveDefinitionFromString(str).create(str, data, types, cache, summariseIndividualObjectives);
     }
 
@@ -338,64 +377,104 @@ public final class StaticUtils {
     }
 
     /**
-     * Converts a JSON file to an array of Class objects based on the provided column names.
+     * Converts a JSON file to an array of semantic column types based on the provided column names.
+     * Expected schema:
+     * {
+     *   "column": {"type": "numeric|boolean|categorical_nominal|categorical_ordinal", "order": ["low", "high"]}
+     * }
      * 
      * @param inputJsonFile The input JSON file to read column types from
-     * @param columnNames The names of the columns to map to Class objects
-     * @return An array of Class objects corresponding to the column names
+     * @param columnNames The names of the columns to map to column types
+     * @return An array of semantic column types corresponding to the column names
      * @throws IOException If there is an error reading the input JSON file
      * @throws IllegalArgumentException If a column name is not found in the JSON file or if an unsupported type is encountered
      */
-    public static Class<?>[] jsonToClassArray(File inputJsonFile, String[] columnNames) throws IOException, IllegalArgumentException {
-        // Read column types from the input JSON file
+    public static ColumnType[] jsonToColumnTypes(File inputJsonFile, String[] columnNames) throws IOException, IllegalArgumentException {
         ObjectMapper objectMapper = new ObjectMapper();
-        Map<String, String> columnTypes = objectMapper.readValue(inputJsonFile, new TypeReference<Map<String, String>>() {});
+        JsonNode root = objectMapper.readTree(inputJsonFile);
+        if (root == null || !root.isObject()) {
+            throw new IllegalArgumentException("Column types JSON must be an object.");
+        }
 
-        // Define mapping of column type strings to Class objects
-        Map<String, Class<?>> typeMapping = new HashMap<>();
-        typeMapping.put("string", String.class);
-        typeMapping.put("int", Integer.class);
-        typeMapping.put("double", Double.class);
-        typeMapping.put("float", Float.class);
-        typeMapping.put("float64", Float.class);
-        typeMapping.put("boolean", Boolean.class);
-
-        // Initialize an array to hold the Class objects for the columns
-        Class<?>[] columnClasses = new Class<?>[columnNames.length];
-
-        // Map column types to Class objects based on the provided column names
-        for (int i = 0; i < columnNames.length; i++) {
-            String columnName = columnNames[i];
-            String type = columnTypes.get(columnName);
-            if (type == null) {
-                throw new IllegalArgumentException("Column '" + columnName + "' not found in the JSON file.");
-            }
-            
-            Class<?> columnClass = typeMapping.get(type.toLowerCase());
-            if (columnClass != null) {
-                columnClasses[i] = columnClass;
-            } else {
-                throw new IllegalArgumentException("Unsupported type: " + type);
+        Set<String> csvColumns = new HashSet<>(Arrays.asList(columnNames));
+        Iterator<String> jsonColumns = root.fieldNames();
+        while (jsonColumns.hasNext()) {
+            String jsonColumn = jsonColumns.next();
+            if (!csvColumns.contains(jsonColumn)) {
+                throw new IllegalArgumentException("Column '" + jsonColumn + "' is not present in the input CSV file.");
             }
         }
 
-        return columnClasses;
+        ColumnType[] columnTypes = new ColumnType[columnNames.length];
+        for (int i = 0; i < columnNames.length; i++) {
+            String columnName = columnNames[i];
+            JsonNode columnNode = root.get(columnName);
+            if (columnNode == null) {
+                throw new IllegalArgumentException("Column '" + columnName + "' not found in the JSON file.");
+            }
+            if (!columnNode.isObject()) {
+                throw new IllegalArgumentException("Column '" + columnName + "' must be an object with a type field.");
+            }
+
+            JsonNode typeNode = columnNode.get("type");
+            if (typeNode == null || !typeNode.isTextual()) {
+                throw new IllegalArgumentException("Column '" + columnName + "' must define a textual type.");
+            }
+
+            String type = typeNode.asText().toLowerCase();
+            switch (type) {
+                case "numeric":
+                    columnTypes[i] = ColumnType.numeric();
+                    break;
+                case "boolean":
+                    columnTypes[i] = ColumnType.bool();
+                    break;
+                case "categorical_nominal":
+                    columnTypes[i] = ColumnType.categoricalNominal();
+                    break;
+                case "categorical_ordinal":
+                    columnTypes[i] = parseOrdinalColumnType(columnName, columnNode);
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unsupported type for column '" + columnName + "': " + type);
+            }
+        }
+
+        return columnTypes;
+    }
+
+    private static ColumnType parseOrdinalColumnType(String columnName, JsonNode columnNode) {
+        JsonNode orderNode = columnNode.get("order");
+        if (orderNode == null || !orderNode.isArray() || orderNode.size() == 0) {
+            throw new IllegalArgumentException("Ordinal column '" + columnName + "' must define a non-empty order array.");
+        }
+
+        List<String> ordinalValues = new ArrayList<>(orderNode.size());
+        for (JsonNode valueNode : orderNode) {
+            if (!valueNode.isTextual()) {
+                throw new IllegalArgumentException("Ordinal column '" + columnName + "' order values must be strings.");
+            }
+            ordinalValues.add(valueNode.asText());
+        }
+        return ColumnType.categoricalOrdinal(ordinalValues);
     }
 
     /**
      * Converts a data matrix with string values to a matrix with numeric values.
-     * Supported types: string, float, double, int, boolean.
-     * Strings are converted to categorical values, with each unique string value
-     * being assigned a unique numeric value.
+     * Nominal categories are assigned transient numeric identifiers by first occurrence.
+     * Ordinal categories are assigned numeric identifiers by their declared order.
      *
      * @param data The data matrix with string values
      * @param types The types of each column in the data matrix
      * @param numThreads The number of threads to use for parallel processing
      * @return A matrix with numeric values
      */
-    public static double[][] dataToNumericMatrix(String[][] data, Class<?>[] types, int numThreads) {
+    public static double[][] dataToNumericMatrix(String[][] data, ColumnType[] types, int numThreads) {
         if (numThreads <= 0) {
             throw new IllegalArgumentException("The number of threads must be greater than 0.");
+        }
+        if (types == null) {
+            throw new IllegalArgumentException("Column types cannot be null.");
         }
         if (data.length == 0) {
             return new double[0][0];
@@ -416,9 +495,11 @@ public final class StaticUtils {
         try {
             List<Future<?>> futures = new ArrayList<>();
             for (int j = 0; j < numColumns; j++) {
-                if (columnTypes[j] == CATEGORICAL_COLUMN) {
+                if (columnTypes[j] == CATEGORICAL_NOMINAL_COLUMN) {
                     final int colIndex = j;
                     futures.add(executor.submit(() -> categoricalMappings[colIndex] = buildCategoricalMapping(data, colIndex)));
+                } else if (columnTypes[j] == CATEGORICAL_ORDINAL_COLUMN) {
+                    categoricalMappings[j] = buildOrdinalMapping(types[j], j);
                 }
             }
             waitForFutures(futures);
@@ -453,17 +534,27 @@ public final class StaticUtils {
         }
     }
 
-    private static int[] getColumnTypeCodes(Class<?>[] types) {
+    private static int[] getColumnTypeCodes(ColumnType[] types) {
         int[] columnTypes = new int[types.length];
         for (int i = 0; i < types.length; i++) {
-            if (types[i] == Float.class || types[i] == Double.class || types[i] == Integer.class) {
-                columnTypes[i] = NUMERIC_COLUMN;
-            } else if (types[i] == Boolean.class) {
-                columnTypes[i] = BOOLEAN_COLUMN;
-            } else if (types[i] == String.class) {
-                columnTypes[i] = CATEGORICAL_COLUMN;
-            } else {
-                throw new IllegalArgumentException("Unsupported type for column " + i + ": " + types[i]);
+            if (types[i] == null) {
+                throw new IllegalArgumentException("Column type at index " + i + " is null.");
+            }
+            switch (types[i].getKind()) {
+                case NUMERIC:
+                    columnTypes[i] = NUMERIC_COLUMN;
+                    break;
+                case BOOLEAN:
+                    columnTypes[i] = BOOLEAN_COLUMN;
+                    break;
+                case CATEGORICAL_NOMINAL:
+                    columnTypes[i] = CATEGORICAL_NOMINAL_COLUMN;
+                    break;
+                case CATEGORICAL_ORDINAL:
+                    columnTypes[i] = CATEGORICAL_ORDINAL_COLUMN;
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unsupported type for column " + i + ": " + types[i].getKind());
             }
         }
         return columnTypes;
@@ -499,6 +590,18 @@ public final class StaticUtils {
         return categoryToNumber;
     }
 
+    private static Map<String, Double> buildOrdinalMapping(ColumnType type, int colIndex) {
+        Map<String, Double> categoryToNumber = new HashMap<>();
+        List<String> values = type.getOrdinalValues();
+        for (int i = 0; i < values.size(); i++) {
+            String category = values.get(i);
+            if (categoryToNumber.put(category, (double) i) != null) {
+                throw new IllegalArgumentException("Duplicate ordinal value for column " + colIndex + ": " + category);
+            }
+        }
+        return categoryToNumber;
+    }
+
     private static void convertRowsToNumeric(
         String[][] data,
         int[] columnTypes,
@@ -514,11 +617,34 @@ public final class StaticUtils {
                 if (columnTypes[j] == NUMERIC_COLUMN) {
                     numericRow[j] = parseNumericValue(row[j], i, j);
                 } else if (columnTypes[j] == BOOLEAN_COLUMN) {
-                    numericRow[j] = row[j].equalsIgnoreCase("Yes") ? 1.0 : 0.0;
+                    numericRow[j] = parseBooleanValue(row[j], i, j);
                 } else {
-                    numericRow[j] = categoricalMappings[j].get(row[j]);
+                    Double value = categoricalMappings[j].get(row[j]);
+                    if (value == null) {
+                        throw new IllegalArgumentException(
+                            "Unknown categorical value at row " + i + ", column " + j + ": " + row[j]
+                        );
+                    }
+                    numericRow[j] = value;
                 }
             }
+        }
+    }
+
+    private static double parseBooleanValue(String value, int rowIndex, int colIndex) {
+        switch (value.trim().toLowerCase()) {
+            case "true":
+            case "yes":
+            case "1":
+                return 1.0;
+            case "false":
+            case "no":
+            case "0":
+                return 0.0;
+            default:
+                throw new IllegalArgumentException(
+                    "Invalid boolean value at row " + rowIndex + ", column " + colIndex + ": " + value
+                );
         }
     }
 

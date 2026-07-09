@@ -1,5 +1,6 @@
 package moeba.utils.observer;
 
+import moeba.ColumnType;
 import moeba.Problem;
 import moeba.representationwrapper.RepresentationWrapper;
 import moeba.representationwrapper.impl.GenericRepresentationWrapper;
@@ -29,7 +30,7 @@ public class ProblemObserver extends Problem {
         void writeToFile(String strFile);
     }
 
-    public ProblemObserver(double[][] data, Class<?>[] types, String[] strFitnessFunctions,
+    public ProblemObserver(double[][] data, ColumnType[] types, String[] strFitnessFunctions,
             CacheStorage<String, Double[]> externalCache, CacheStorage<String, Double>[] internalCaches,
             RepresentationWrapper representationWrapper, ObserverInterface[] observers) {
 

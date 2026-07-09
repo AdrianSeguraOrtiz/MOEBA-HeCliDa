@@ -2,6 +2,7 @@ package moeba.fitnessfunction.impl;
 
 import java.util.ArrayList;
 
+import moeba.ColumnType;
 import moeba.fitnessfunction.GenericBiclusterFitnessFunction;
 import moeba.utils.storage.CacheStorage;
 
@@ -9,7 +10,7 @@ public class BiclusterSizeNumBicsNormComp extends GenericBiclusterFitnessFunctio
     private BiclusterSizeNormComp biclusterSizeNormComp;
     private double coherenceWeight;
 
-    public BiclusterSizeNumBicsNormComp(double[][] data, Class<?>[] types, CacheStorage<String, Double> internalCache,
+    public BiclusterSizeNumBicsNormComp(double[][] data, ColumnType[] types, CacheStorage<String, Double> internalCache,
             String summariseIndividualObjectives, double rowsWeight, double coherenceWeight) {
         super(data, types, internalCache, summariseIndividualObjectives);
         this.biclusterSizeNormComp = new BiclusterSizeNormComp(data, types, internalCache, summariseIndividualObjectives, rowsWeight);

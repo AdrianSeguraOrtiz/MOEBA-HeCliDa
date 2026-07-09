@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 
+import moeba.ColumnType;
 import moeba.Representation;
 import moeba.StaticUtils;
 import picocli.CommandLine;
@@ -21,7 +22,7 @@ public class FastEvaluationRunner implements Runnable {
     @Option(names = {"--input-dataset"}, description = "Path to the input CSV dataset on which you want to perform biclustering", required = true)
     private File inputDataset;
 
-    @Option(names = {"--input-column-types"}, description = "Path to the input JSON file which specifies the names of the columns in order and the type of data of each of them", required = true)
+    @Option(names = {"--input-column-types"}, description = "Path to the input JSON file which maps each CSV column name to a semantic column type", required = true)
     private File inputColumnTypes;
 
     @Option(names = {"--solution-translated"}, description = "Path to the input CSV file with solution translated biclusters.", required = true)
@@ -70,9 +71,9 @@ public class FastEvaluationRunner implements Runnable {
         }
 
         // Read column types
-        Class<?>[] types = null;
+        ColumnType[] types = null;
         try {
-            types = StaticUtils.jsonToClassArray(inputColumnTypes, columnNames);
+            types = StaticUtils.jsonToColumnTypes(inputColumnTypes, columnNames);
         } catch (IOException e) {
             e.printStackTrace();
         }

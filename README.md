@@ -18,7 +18,20 @@ java -cp target/moeba-bio-1.0.0-jar-with-dependencies.jar moeba.Runner \
 
 Required inputs:
 * `--input-dataset`: CSV dataset to bicluster.
-* `--input-column-types`: JSON with the ordered column names and their data types.
+* `--input-column-types`: JSON object keyed by CSV column name with the semantic type of each column.
+
+Column type JSON schema:
+
+```json
+{
+  "age": {"type": "numeric"},
+  "responded": {"type": "boolean"},
+  "diagnosis": {"type": "categorical_nominal"},
+  "severity": {"type": "categorical_ordinal", "order": ["low", "medium", "high"]}
+}
+```
+
+Supported `type` values are `numeric`, `boolean`, `categorical_nominal`, and `categorical_ordinal`. Ordinal categorical columns must declare `order`; nominal categorical values are encoded only as transient numeric identifiers during matrix conversion.
 
 Common optional flags:
 * `--str-fitness-functions`: Objectives separated by `;` (e.g., `BiclusterSizeNormComp;MeanSquaredResidueNorm`).

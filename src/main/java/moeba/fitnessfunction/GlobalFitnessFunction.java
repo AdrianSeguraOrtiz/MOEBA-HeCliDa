@@ -2,9 +2,11 @@ package moeba.fitnessfunction;
 
 import java.util.ArrayList;
 
+import moeba.ColumnType;
+
 public abstract class GlobalFitnessFunction extends FitnessFunction {
 
-    public GlobalFitnessFunction(double[][] data, Class<?>[] types) {
+    public GlobalFitnessFunction(double[][] data, ColumnType[] types) {
         super(data, types);
     }
 

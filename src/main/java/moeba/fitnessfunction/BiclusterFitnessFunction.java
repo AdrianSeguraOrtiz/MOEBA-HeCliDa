@@ -2,6 +2,7 @@ package moeba.fitnessfunction;
 
 import java.util.ArrayList;
 import java.util.function.BiFunction;
+import moeba.ColumnType;
 import moeba.StaticUtils;
 import moeba.utils.storage.CacheStorage;
 
@@ -9,7 +10,7 @@ public abstract class BiclusterFitnessFunction extends FitnessFunction {
 
     protected CacheStorage<String, Double> internalCache;
 
-    public BiclusterFitnessFunction(double[][] data, Class<?>[] types, CacheStorage<String, Double> internalCache, String summariseIndividualObjectives) {
+    public BiclusterFitnessFunction(double[][] data, ColumnType[] types, CacheStorage<String, Double> internalCache, String summariseIndividualObjectives) {
         super(data, types);
         this.internalCache = internalCache;
         this.func = selectRunnableFunc(summariseIndividualObjectives);

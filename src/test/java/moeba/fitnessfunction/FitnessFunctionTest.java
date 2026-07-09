@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 import org.junit.jupiter.api.Test;
+import moeba.ColumnType;
 import moeba.fitnessfunction.impl.BiclusterSizeNumBicsNormComp;
 import moeba.fitnessfunction.impl.BiclusterSizeNormComp;
 import moeba.fitnessfunction.impl.BiclusterVarianceNorm;
@@ -21,7 +22,12 @@ public class FitnessFunctionTest {
         {0.7, 0.8, 0.5, 0.1},
         {0.2, 0.3, 0.8, 0.6}
     };
-    final Class<?>[] types = new Class<?>[] {Float.class, Float.class, Float.class, Float.class};
+    final ColumnType[] types = new ColumnType[] {
+        ColumnType.numeric(),
+        ColumnType.numeric(),
+        ColumnType.numeric(),
+        ColumnType.numeric()
+    };
     final double epsilon = 0.01;
     
     @SuppressWarnings("unchecked")

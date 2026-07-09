@@ -2,11 +2,12 @@ package moeba.fitnessfunction;
 
 import java.util.ArrayList;
 
+import moeba.ColumnType;
 import moeba.utils.storage.CacheStorage;
 
 public abstract class GenericBiclusterFitnessFunction extends BiclusterFitnessFunction {
 
-    public GenericBiclusterFitnessFunction(double[][] data, Class<?>[] types,
+    public GenericBiclusterFitnessFunction(double[][] data, ColumnType[] types,
             CacheStorage<String, Double> internalCache, String summariseIndividualObjectives) {
         super(data, types, internalCache, summariseIndividualObjectives);
     }

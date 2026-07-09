@@ -19,6 +19,13 @@ Usage:
     python script.py --biclusters-file <path_to_biclusters_json> --data-file <path_to_data_tsv> --policy <replace|remove>
 """
 
+def get_moeba_column_type(dtype):
+    if pd.api.types.is_bool_dtype(dtype):
+        return {"type": "boolean"}
+    if pd.api.types.is_numeric_dtype(dtype):
+        return {"type": "numeric"}
+    return {"type": "categorical_nominal"}
+
 # Command-line arguments parsing
 parser = argparse.ArgumentParser(description='Process bicluster and data files with explicit parameter names.')
 parser.add_argument("--biclusters-file", required=True, help="JSON file containing the biclusters' specification")
@@ -158,8 +165,8 @@ df_normalized = df_normalized[original_order]
 # Save the modified dataset to CSV
 df_normalized.to_csv(f'{output_base}-data.csv', index=False)
 
-# Create a dictionary with column names and their data types
-column_data_types = {col: str(dtype) for col, dtype in df_normalized.dtypes.items()}
+# Create a dictionary with column names and their MOEBA-BIO semantic data types
+column_data_types = {col: get_moeba_column_type(dtype) for col, dtype in df_normalized.dtypes.items()}
 
 # Save the data types dictionary as JSON
 types_json_path = f'{output_base}-types.json'
