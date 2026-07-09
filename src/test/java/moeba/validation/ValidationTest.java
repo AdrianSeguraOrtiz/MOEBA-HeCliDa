@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 
 import moeba.validation.metric.impl.ClusteringErrorComplementary;
 public class ValidationTest {
@@ -30,7 +30,7 @@ public class ValidationTest {
         inferredBiclusters.add(ib3);
 
         ClusteringErrorComplementary ce = new ClusteringErrorComplementary(false, null);
-        assertEquals(ce.run(goldStandardBiclusters, inferredBiclusters, 0), 1.0 - 19.0/25.0);
+        assertEquals(1.0 - 19.0/25.0, ce.run(goldStandardBiclusters, inferredBiclusters, 0));
     }
 
     @SuppressWarnings("unchecked")
@@ -59,7 +59,7 @@ public class ValidationTest {
         inferredBiclusters.add(ib5);
 
         ClusteringErrorComplementary ce = new ClusteringErrorComplementary(false, null);
-        assertEquals(ce.run(goldStandardBiclusters, inferredBiclusters, 0), 1.0 - 21.0/30.0);
+        assertEquals(1.0 - 21.0/30.0, ce.run(goldStandardBiclusters, inferredBiclusters, 0));
     }
 
     @SuppressWarnings("unchecked")
@@ -86,6 +86,6 @@ public class ValidationTest {
         inferredBiclusters.add(ib4);
 
         ClusteringErrorComplementary ce = new ClusteringErrorComplementary(false, null);
-        assertEquals(ce.run(goldStandardBiclusters, inferredBiclusters, 0), 1.0 - 0.0);
+        assertEquals(1.0 - 0.0, ce.run(goldStandardBiclusters, inferredBiclusters, 0));
     }
 }

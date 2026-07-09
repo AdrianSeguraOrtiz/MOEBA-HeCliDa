@@ -1,7 +1,9 @@
 package moeba.operator.crossover;
 
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.testng.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -11,6 +13,7 @@ import java.util.List;
 import java.util.Random;
 
 import org.mockito.Mockito;
+import org.junit.jupiter.api.Test;
 import moeba.operator.crossover.generic.biclusterbinary.BiclusterBinaryCrossover;
 import moeba.operator.crossover.generic.biclusterbinary.impl.BicUniformCrossover;
 import moeba.operator.crossover.generic.rowbiclustermixed.impl.GroupedBasedCrossover;
@@ -18,12 +21,11 @@ import moeba.operator.crossover.generic.rowpermutation.RowPermutationCrossover;
 import moeba.operator.crossover.generic.rowpermutation.impl.CycleCrossover;
 import moeba.operator.crossover.generic.rowpermutation.impl.EdgeRecombinationCrossover;
 import moeba.operator.crossover.generic.rowpermutation.impl.PartiallyMappedCrossover;
-import org.testng.annotations.Test;
 import org.uma.jmetal.solution.integersolution.IntegerSolution;
 import org.uma.jmetal.solution.integersolution.impl.DefaultIntegerSolution;
 import org.uma.jmetal.util.bounds.Bounds;
 
-public class CrossoverTest {
+public class GenericCrossoverTest {
 
     /**
      * Creates an IntegerSolution instance from a given array of values.
@@ -68,8 +70,8 @@ public class CrossoverTest {
         BinarySet child2 = (BinarySet) parent2.clone();
         crossoverOperator.execute(child1, child2);
         // Verify that children remain identical to their respective parents post-crossover.
-        assertEquals(child1, parent1);
-        assertEquals(child2, parent2);
+        assertEquals(parent1, child1);
+        assertEquals(parent2, child2);
     }
 
     /**
@@ -94,8 +96,12 @@ public class CrossoverTest {
         int[] expectedOffsprint1 = new int[]{1,3,7,4,2,6,5,8,9};
         int[] expectedOffsprint2 = new int[]{9,2,3,8,5,6,7,1,4};
         // Assert that the resulting offspring match one of the expected outcomes.
-        assert(Arrays.equals(child1, expectedOffsprint1) || Arrays.equals(child1, expectedOffsprint2));
-        assert(Arrays.equals(child2, expectedOffsprint1) || Arrays.equals(child2, expectedOffsprint2));
+        assertTrue(
+            Arrays.equals(child1, expectedOffsprint1) || Arrays.equals(child1, expectedOffsprint2)
+        );
+        assertTrue(
+            Arrays.equals(child2, expectedOffsprint1) || Arrays.equals(child2, expectedOffsprint2)
+        );
     }
 
     /**
@@ -124,8 +130,8 @@ public class CrossoverTest {
         int[] expectedOffsprint1 = new int[]{8,2,7,3,4,5,6,1,9,0};
         int[] expectedOffsprint2 = new int[]{0,1,4,3,6,2,5,7,8,9};
         // Assert that the resulting offspring exactly match the expected outcomes.
-        assert(Arrays.equals(child1, expectedOffsprint1));
-        assert(Arrays.equals(child2, expectedOffsprint2));
+        assertArrayEquals(expectedOffsprint1, child1);
+        assertArrayEquals(expectedOffsprint2, child2);
     }
 
     /**
@@ -155,8 +161,8 @@ public class CrossoverTest {
         int[] expectedOffsprint2 = new int[]{4,1,2,3,5};
 
         // Assert that the resulting offspring match the expected outcomes.
-        assert(Arrays.equals(child1, expectedOffsprint1));
-        assert(Arrays.equals(child2, expectedOffsprint2));
+        assertArrayEquals(expectedOffsprint1, child1);
+        assertArrayEquals(expectedOffsprint2, child2);
     }
 
     /**
@@ -185,8 +191,8 @@ public class CrossoverTest {
         int[] child2 = is2.variables().stream().mapToInt(Integer::intValue).toArray();
         int[] expectedOffsprint1 = new int[]{0,1,2,8,3,4,5,7,6};
         int[] expectedOffsprint2 = new int[]{0,1,8,2,3,4,7,5,6};
-        assert(Arrays.equals(child1, expectedOffsprint1));
-        assert(Arrays.equals(child2, expectedOffsprint2));
+        assertArrayEquals(expectedOffsprint1, child1);
+        assertArrayEquals(expectedOffsprint2, child2);
         assertEquals("000100011", bs1.toString());
         assertEquals("000100011", bs2.toString());
     }
@@ -217,8 +223,8 @@ public class CrossoverTest {
         int[] child2 = is2.variables().stream().mapToInt(Integer::intValue).toArray();
         int[] expectedOffsprint1 = new int[]{0,1,2,5,3,4,6,7,8};
         int[] expectedOffsprint2 = new int[]{3,4,2,5,0,1,6,7,8};
-        assert(Arrays.equals(child1, expectedOffsprint1));
-        assert(Arrays.equals(child2, expectedOffsprint2));
+        assertArrayEquals(expectedOffsprint1, child1);
+        assertArrayEquals(expectedOffsprint2, child2);
         assertEquals("000101001", bs1.toString());
         assertEquals("000101001", bs2.toString());
     }

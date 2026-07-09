@@ -1,6 +1,7 @@
 package moeba.operator.mutation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.mockito.ArgumentMatchers.anyInt;
 
 import java.util.ArrayList;
@@ -13,12 +14,12 @@ import java.util.Random;
 import moeba.operator.mutation.generic.biclusterbinary.impl.BicUniformMutation;
 import moeba.operator.mutation.generic.rowpermutation.impl.SwapMutation;
 import org.mockito.Mockito;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 import org.uma.jmetal.solution.integersolution.IntegerSolution;
 import org.uma.jmetal.solution.integersolution.impl.DefaultIntegerSolution;
 import org.uma.jmetal.util.bounds.Bounds;
 
-public class MutationTest {
+public class GenericMutationTest {
     
     /**
      * Creates an IntegerSolution instance from a given array of values.
@@ -60,7 +61,7 @@ public class MutationTest {
         BicUniformMutation bicUniformMutation = new BicUniformMutation(mockRandom);
 
         bicUniformMutation.execute(bs, 0.5f);
-        assertEquals(bs, expected);
+        assertEquals(expected, bs);
     }
 
     /**
@@ -79,7 +80,6 @@ public class MutationTest {
         swapMutation.execute(s, 0.1f);
         int[] res = s.variables().stream().mapToInt(Integer::intValue).toArray();
         int[] expected = new int[]{8,6,2,1,5,4,3,7,0,9};
-        assert(Arrays.equals(res, expected));
+        assertArrayEquals(expected, res);
     }
 }
-

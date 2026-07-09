@@ -1,9 +1,11 @@
 package moeba.fitnessfunction;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 import moeba.fitnessfunction.impl.BiclusterSizeNumBicsNormComp;
 import moeba.fitnessfunction.impl.BiclusterSizeNormComp;
 import moeba.fitnessfunction.impl.BiclusterVarianceNorm;
@@ -31,7 +33,8 @@ public class FitnessFunctionTest {
         ArrayList<Integer>[] b = new ArrayList[]{new ArrayList<>(Arrays.asList(1, 2)), new ArrayList<>(Arrays.asList(0, 1))};
         biclusters.add(b);
 
-        assert(Math.abs((1.0 - (0.5*(2.0/4.0) + 0.5*(2.0/4.0))) - f.run(biclusters)) < epsilon);
+        double expected = 1.0 - (0.5*(2.0/4.0) + 0.5*(2.0/4.0));
+        assertEquals(expected, f.run(biclusters), epsilon);
     }
 
     @SuppressWarnings("unchecked")
@@ -45,7 +48,10 @@ public class FitnessFunctionTest {
         biclusters.add(b1);
         biclusters.add(b2);
 
-        assert(Math.abs((1.0 - ((0.5*(2.0/4.0) + 0.5*(2.0/4.0)) + (0.5*(3.0/4.0) + 0.5*(2.0/4.0)))/2) - f.run(biclusters)) < epsilon);
+        double expected = 1.0 - (
+            (0.5*(2.0/4.0) + 0.5*(2.0/4.0)) + (0.5*(3.0/4.0) + 0.5*(2.0/4.0))
+        ) / 2;
+        assertEquals(expected, f.run(biclusters), epsilon);
     }
 
     @SuppressWarnings("unchecked")
@@ -59,7 +65,11 @@ public class FitnessFunctionTest {
         biclusters.add(b1);
         biclusters.add(b2);
 
-        assert(Math.abs((1.0 - 2.0/(1.0/(0.5*(2.0/4.0) + 0.5*(2.0/4.0)) + 1.0/(0.5*(3.0/4.0) + 0.5*(2.0/4.0)))) - f.run(biclusters)) < epsilon);
+        double expected = 1.0 - 2.0 / (
+            1.0 / (0.5*(2.0/4.0) + 0.5*(2.0/4.0)) +
+            1.0 / (0.5*(3.0/4.0) + 0.5*(2.0/4.0))
+        );
+        assertEquals(expected, f.run(biclusters), epsilon);
     }
 
     @SuppressWarnings("unchecked")
@@ -73,7 +83,10 @@ public class FitnessFunctionTest {
         biclusters.add(b1);
         biclusters.add(b2);
 
-        assert(Math.abs((1.0 - Math.sqrt((0.5*(2.0/4.0) + 0.5*(2.0/4.0)) * (0.5*(3.0/4.0) + 0.5*(2.0/4.0)))) - f.run(biclusters)) < epsilon);
+        double expected = 1.0 - Math.sqrt(
+            (0.5*(2.0/4.0) + 0.5*(2.0/4.0)) * (0.5*(3.0/4.0) + 0.5*(2.0/4.0))
+        );
+        assertEquals(expected, f.run(biclusters), epsilon);
     }
 
     @SuppressWarnings("unchecked")
@@ -82,10 +95,11 @@ public class FitnessFunctionTest {
         FitnessFunction f = new BiclusterSizeNormComp(data, types, null, "Mean", 0.75);
 
         ArrayList<ArrayList<Integer>[]> biclusters = new ArrayList<>();
-        ArrayList<Integer>[] b = new ArrayList[]{new ArrayList<>(Arrays.asList(1, 2, 3)), new ArrayList<>(Arrays.asList(1))};
+        ArrayList<Integer>[] b = new ArrayList[]{new ArrayList<>(Arrays.asList(1, 2, 3)), new ArrayList<>(Arrays.asList(1, 2))};
         biclusters.add(b);
 
-        assert(Math.abs((1.0 - (0.75*(3.0/4.0) + 0.25*(1.0/4.0))) - f.run(biclusters)) < epsilon);
+        double expected = 1.0 - (0.75*(3.0/4.0) + 0.25*(2.0/4.0));
+        assertEquals(expected, f.run(biclusters), epsilon);
     }
 
     @SuppressWarnings("unchecked")
@@ -97,7 +111,13 @@ public class FitnessFunctionTest {
         ArrayList<Integer>[] b = new ArrayList[]{new ArrayList<>(Arrays.asList(2, 3)), new ArrayList<>(Arrays.asList(2, 3))};
         biclusters.add(b);
 
-        assert(Math.abs((1.0 - (1.0 - 4 * (Math.pow(0.5-0.5, 2) + Math.pow(0.1-0.5, 2) + Math.pow(0.8-0.5, 2) + Math.pow(0.6-0.5, 2)) / 16.0)) - f.run(biclusters)) < epsilon);
+        double expected = 1.0 - (
+            1.0 - 4 * (
+                Math.pow(0.5-0.5, 2) + Math.pow(0.1-0.5, 2) +
+                Math.pow(0.8-0.5, 2) + Math.pow(0.6-0.5, 2)
+            ) / 16.0
+        );
+        assertEquals(expected, f.run(biclusters), epsilon);
     }
 
     @SuppressWarnings("unchecked")
@@ -109,7 +129,13 @@ public class FitnessFunctionTest {
         ArrayList<Integer>[] b = new ArrayList[]{new ArrayList<>(Arrays.asList(2, 3)), new ArrayList<>(Arrays.asList(2, 3))};
         biclusters.add(b);
 
-        assert(Math.abs((1.0 - (4 * (Math.pow(0.5-0.3, 2) + Math.pow(0.1-0.3, 2) + Math.pow(0.8-0.7, 2) + Math.pow(0.6-0.7, 2)) / 4.0)) - f.run(biclusters)) < epsilon);
+        double expected = 1.0 - (
+            4 * (
+                Math.pow(0.5-0.3, 2) + Math.pow(0.1-0.3, 2) +
+                Math.pow(0.8-0.7, 2) + Math.pow(0.6-0.7, 2)
+            ) / 4.0
+        );
+        assertEquals(expected, f.run(biclusters), epsilon);
     }
 
     @SuppressWarnings("unchecked")
@@ -121,7 +147,11 @@ public class FitnessFunctionTest {
         ArrayList<Integer>[] b = new ArrayList[]{new ArrayList<>(Arrays.asList(2, 3)), new ArrayList<>(Arrays.asList(2, 3))};
         biclusters.add(b);
 
-        assert(Math.abs((1.0 - (1.0 - (Math.pow(0.5-0.3-0.65+0.5, 2) + Math.pow(0.1-0.3-0.35+0.5, 2) + Math.pow(0.8-0.7-0.65+0.5, 2) + Math.pow(0.6-0.7-0.35+0.5, 2) / 4.0) / 4.0)) - f.run(biclusters)) < epsilon);
+        double expected = (
+            Math.pow(0.5-0.3-0.65+0.5, 2) + Math.pow(0.1-0.3-0.35+0.5, 2) +
+            Math.pow(0.8-0.7-0.65+0.5, 2) + Math.pow(0.6-0.7-0.35+0.5, 2)
+        ) / 4.0 / 4.0;
+        assertEquals(expected, f.run(biclusters), epsilon);
     }
 
     @SuppressWarnings("unchecked")
@@ -155,7 +185,8 @@ public class FitnessFunctionTest {
 
         double fvb2 = (fvy0 + fvy1) / 2.0;
 
-        assert((Math.abs(1.0 - (fvb1 + fvb2)/2.0) - f.run(biclusters)) < epsilon);
+        double expected = 1.0 - (fvb1 + fvb2) / 2.0;
+        assertEquals(expected, f.run(biclusters), epsilon);
     }
 
     @SuppressWarnings("unchecked")
@@ -171,6 +202,7 @@ public class FitnessFunctionTest {
         double b1Score = 0.5 * (0.5*(2.0/4.0) + 0.5*(2.0/4.0)) + 0.5 * (1 - ((4.0 - 4.0) / 4.0));
         double b2Score = 0.5 * (0.5*(2.0/4.0) + 0.5*(2.0/4.0)) + 0.5 * (1 - ((4.0 - 4.0) / 4.0));
 
-        assert(Math.abs((1.0 - (b1Score + b2Score)/2) - f.run(biclusters)) < epsilon);
+        double expected = 1.0 - (b1Score + b2Score) / 2;
+        assertEquals(expected, f.run(biclusters), epsilon);
     }
 }

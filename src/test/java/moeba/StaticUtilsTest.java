@@ -1,6 +1,6 @@
 package moeba;
 
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
@@ -9,7 +9,7 @@ import java.io.File;
 import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.testng.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class StaticUtilsTest {
 
@@ -51,9 +51,9 @@ public class StaticUtilsTest {
         Class<?>[] columnClasses = StaticUtils.jsonToClassArray(inputJsonFile, columnNames);
 
         // Verify the result
-        assertEquals(columnClasses.length, 2);
-        assertEquals(columnClasses[0], String.class);
-        assertEquals(columnClasses[1], Integer.class);
+        assertEquals(2, columnClasses.length);
+        assertEquals(String.class, columnClasses[0]);
+        assertEquals(Integer.class, columnClasses[1]);
     }
 
     @Test

@@ -7,7 +7,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import moeba.representationwrapper.impl.GenericRepresentationWrapper;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 import org.uma.jmetal.solution.binarysolution.BinarySolution;
 import org.uma.jmetal.solution.binarysolution.impl.DefaultBinarySolution;
 import org.uma.jmetal.solution.compositesolution.CompositeSolution;
