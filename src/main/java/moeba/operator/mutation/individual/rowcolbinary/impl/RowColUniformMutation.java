@@ -19,12 +19,15 @@ public class RowColUniformMutation implements RowColBinaryMutation {
 
     @Override
     public void execute(BinarySet bs, double mutationProbability) {
+        if (Double.isNaN(mutationProbability) || mutationProbability < 0.0 || mutationProbability > 1.0) {
+            throw new IllegalArgumentException("Mutation probability must be between 0 and 1.");
+        }
+
         int numBits = bs.getBinarySetLength();
-        int numBitsChanged = (int)((mutationProbability-0.05 + 0.1*random.nextFloat())*numBits);
-        int index;
-        for (int i = 0; i < numBitsChanged; i++) {
-            index = random.nextInt(numBits);
-            bs.set(index, !bs.get(index));
+        for (int i = 0; i < numBits; i++) {
+            if (random.nextDouble() < mutationProbability) {
+                bs.set(i, !bs.get(i));
+            }
         }
     }
 }

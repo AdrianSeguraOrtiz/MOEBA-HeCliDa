@@ -12,17 +12,24 @@ public class RowColUniformCrossover implements RowColBinaryCrossover {
         this.random = new Random();
     }
 
+    public RowColUniformCrossover(Random random) {
+        this.random = random;
+    }
+
     @Override
     public void execute(BinarySet s1, BinarySet s2) {
         int numBits = s1.getBinarySetLength();
-        int numBitsChanged = (int)((0.45 + 0.1*random.nextFloat())*numBits);
-        int index;
+        if (numBits != s2.getBinarySetLength()) {
+            throw new IllegalArgumentException("Both binary sets must have the same length.");
+        }
+
         boolean aux;
-        for (int i = 0; i < numBitsChanged; i++) {
-            index = random.nextInt(numBits);
-            aux = s1.get(index);
-            s1.set(index, s2.get(index));
-            s2.set(index, aux);
+        for (int i = 0; i < numBits; i++) {
+            if (random.nextBoolean()) {
+                aux = s1.get(i);
+                s1.set(i, s2.get(i));
+                s2.set(i, aux);
+            }
         }
     }
     
