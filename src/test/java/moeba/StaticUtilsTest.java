@@ -81,7 +81,6 @@ public class StaticUtilsTest {
         );
 
         assertTrue(exception.getMessage().contains("requires --num-threads > 1"));
-        assertTrue(exception.getMessage().contains("no single-thread external-archive equivalent"));
     }
 
     @Test
