@@ -707,6 +707,8 @@ public final class StaticUtils {
         long computingTime;
         List<CompositeSolution> population;
 
+        strAlgorithm = resolveAlgorithmForThreadCount(strAlgorithm, numThreads);
+
         // Defines the termination condition for the algorithm
         Termination termination = new TerminationByEvaluations(maxEvaluations);
         
@@ -1035,6 +1037,35 @@ public final class StaticUtils {
 
         return new AlgorithmResult<>(computingTime, population);
     } 
+
+    static String resolveAlgorithmForThreadCount(String strAlgorithm, int numThreads) {
+        if (numThreads != 1) {
+            return strAlgorithm;
+        }
+
+        if (strAlgorithm.startsWith("GA-AsyncParallel")) {
+            return replaceAsyncAlgorithm(strAlgorithm, "GA-AsyncParallel", "GA-SingleThread", numThreads);
+        }
+        if (strAlgorithm.startsWith("NSGAII-AsyncParallel")) {
+            return replaceAsyncAlgorithm(strAlgorithm, "NSGAII-AsyncParallel", "NSGAII-SingleThread", numThreads);
+        }
+        if (strAlgorithm.startsWith("NSGAII-ExternalFile-AsyncParallel")) {
+            throw new IllegalArgumentException(
+                "Algorithm " + strAlgorithm + " requires --num-threads > 1."
+            );
+        }
+
+        return strAlgorithm;
+    }
+
+    private static String replaceAsyncAlgorithm(String strAlgorithm, String asyncAlgorithm, String singleThreadAlgorithm, int numThreads) {
+        String resolvedAlgorithm = singleThreadAlgorithm + strAlgorithm.substring(asyncAlgorithm.length());
+        System.out.println(
+            "Algorithm " + asyncAlgorithm + " was requested with " + numThreads +
+            " thread. Executing " + singleThreadAlgorithm + " instead."
+        );
+        return resolvedAlgorithm;
+    }
 
     /**
      * Finds the nearest perfect square to a given number.

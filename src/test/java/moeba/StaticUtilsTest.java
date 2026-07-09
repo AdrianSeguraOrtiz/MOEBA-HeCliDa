@@ -3,9 +3,12 @@ package moeba;
 import org.junit.jupiter.api.Test;
 
 import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 import static moeba.StaticUtils.csvToStringMatrix;
@@ -13,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class StaticUtilsTest {
 
@@ -36,6 +40,48 @@ public class StaticUtilsTest {
         assertEquals("value21", matrix[1][0]);
         assertEquals("value22", matrix[1][1]);
         assertEquals("value23", matrix[1][2]);
+    }
+
+    @Test
+    public void testResolveAlgorithmForSingleThreadUsesSingleThreadEquivalentAndReportsChange() {
+        PrintStream originalOut = System.out;
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try {
+            System.setOut(new PrintStream(output, true, StandardCharsets.UTF_8));
+
+            String resolvedGa = StaticUtils.resolveAlgorithmForThreadCount("GA-AsyncParallel", 1);
+            String resolvedNsgaii = StaticUtils.resolveAlgorithmForThreadCount("NSGAII-AsyncParallel(foo=bar)", 1);
+
+            assertEquals("GA-SingleThread", resolvedGa);
+            assertEquals("NSGAII-SingleThread(foo=bar)", resolvedNsgaii);
+        } finally {
+            System.setOut(originalOut);
+        }
+
+        String message = new String(output.toByteArray(), StandardCharsets.UTF_8);
+        assertTrue(message.contains("Algorithm GA-AsyncParallel was requested with 1 thread."));
+        assertTrue(message.contains("Executing GA-SingleThread instead."));
+        assertTrue(message.contains("Algorithm NSGAII-AsyncParallel was requested with 1 thread."));
+        assertTrue(message.contains("Executing NSGAII-SingleThread instead."));
+    }
+
+    @Test
+    public void testResolveAlgorithmKeepsAsyncWhenMoreThanOneThreadIsAvailable() {
+        assertEquals(
+            "NSGAII-AsyncParallel",
+            StaticUtils.resolveAlgorithmForThreadCount("NSGAII-AsyncParallel", 2)
+        );
+    }
+
+    @Test
+    public void testResolveAlgorithmRejectsExternalFileAsyncWithOneThread() {
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> StaticUtils.resolveAlgorithmForThreadCount("NSGAII-ExternalFile-AsyncParallel", 1)
+        );
+
+        assertTrue(exception.getMessage().contains("requires --num-threads > 1"));
+        assertTrue(exception.getMessage().contains("no single-thread external-archive equivalent"));
     }
 
     @Test
