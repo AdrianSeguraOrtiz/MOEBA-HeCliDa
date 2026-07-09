@@ -70,6 +70,16 @@ public class SpecificRepresentationWrapper extends RepresentationWrapper {
     }
 
     @Override
+    public String getDefaultCrossoverOperator() {
+        throw new IllegalArgumentException("No default crossover operator is configured for SPECIFIC representation. Use --crossover-operator explicitly.");
+    }
+
+    @Override
+    public String getDefaultMutationOperator() {
+        throw new IllegalArgumentException("No default mutation operator is configured for SPECIFIC representation. Use --mutation-operator explicitly.");
+    }
+
+    @Override
     public CrossoverOperator<CompositeSolution> getCrossoverFromString(String strCrossoverOperator,
             double crossoverProbability, int numApproxCrossovers) {
         // TODO Auto-generated method stub

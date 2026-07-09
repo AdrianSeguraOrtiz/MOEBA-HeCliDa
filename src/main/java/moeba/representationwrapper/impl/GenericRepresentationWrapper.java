@@ -39,6 +39,9 @@ import org.uma.jmetal.solution.integersolution.IntegerSolution;
 import org.uma.jmetal.util.binarySet.BinarySet;
 
 public class GenericRepresentationWrapper extends RepresentationWrapper {
+    private static final String DEFAULT_CROSSOVER_OPERATOR = "GroupedBasedCrossover;CellUniformCrossover";
+    private static final String DEFAULT_MUTATION_OPERATOR = "SwapMutation;BicUniformMutation;CellUniformMutation";
+
     private float genericInitialMinPercBics;
     private float genericInitialMaxPercBics;
     private String summariseIndividualObjectives;
@@ -198,6 +201,16 @@ public class GenericRepresentationWrapper extends RepresentationWrapper {
             varLabels[i] = "Cell-R" + (i % super.numRows) + "-C" + ((i / super.numRows) - 2);
         }
         return varLabels;
+    }
+
+    @Override
+    public String getDefaultCrossoverOperator() {
+        return DEFAULT_CROSSOVER_OPERATOR;
+    }
+
+    @Override
+    public String getDefaultMutationOperator() {
+        return DEFAULT_MUTATION_OPERATOR;
     }
 
     @Override

@@ -6,6 +6,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.log4j.BasicConfigurator;
@@ -35,6 +36,8 @@ import picocli.CommandLine.Option;
 
 @Command(name = "RunnerMOEBA", description = "Multi-Objective Evolutionary Biclustering Algorithm (MOEBA) for Heterogeneous Clinical Data (HeCliDa) with progressive representation for self-determination on the number of clusters", mixinStandardHelpOptions = true, showDefaultValues = true, sortOptions = false)
 public class Runner extends AbstractAlgorithmRunner implements Runnable {
+
+    private static final String AUTO = "AUTO";
 
     @Option(names = {"--input-dataset"}, description = "Path to the input CSV dataset on which you want to perform biclustering", required = true)
     private File inputDataset;
@@ -96,8 +99,8 @@ public class Runner extends AbstractAlgorithmRunner implements Runnable {
                 "\t- SPECIFIC: ...\n" + //
                 "\t- INDIVIDUAL: RowColBinaryCrossover\n" + //
                 "\t- DYNAMIC: GENERIC-SPECIFIC\n" + //
-                "In case any operator requires additional parameters, they shall be specified in brackets in the following way OperatorName(parameter1=value, parameter2=value, ...)",
-            defaultValue = "GroupedBasedCrossover;CellUniformCrossover")
+                "Use AUTO to select a representation-aware default. In case any operator requires additional parameters, they shall be specified in brackets in the following way OperatorName(parameter1=value, parameter2=value, ...)",
+            defaultValue = AUTO)
     private String strCrossoverOperator;
 
     @Option(names = {"--mutation-operator"}, 
@@ -105,8 +108,9 @@ public class Runner extends AbstractAlgorithmRunner implements Runnable {
                 "\t- GENERIC: RowPermutationMutation;BiclusterBinaryMutation;CellBinaryMutation\n" + //
                 "\t- SPECIFIC: ...\n" + //
                 "\t- INDIVIDUAL: RowColBinaryMutation\n" + //
-                "\t- DYNAMIC: GENERIC-SPECIFIC", 
-            defaultValue = "SwapMutation;BicUniformMutation;CellUniformMutation")
+                "\t- DYNAMIC: GENERIC-SPECIFIC\n" + //
+                "Use AUTO to select a representation-aware default.", 
+            defaultValue = AUTO)
     private String strMutationOperator;
 
     @Option(names = {"--have-external-cache"}, description = "Whether the external cache is used")
@@ -115,7 +119,7 @@ public class Runner extends AbstractAlgorithmRunner implements Runnable {
     @Option(names = {"--have-internal-cache"}, description = "Whether the internal cache is used")
     private boolean haveInternalCache;
 
-    @Option(names = {"--observers"}, description = "List of observers separated by semicolon. Possible values: BiclusterCountObserver, FitnessEvolutionMinObserver, FitnessEvolutionAvgObserver, FitnessEvolutionMaxObserver, NumEvaluationsObserver, ExternalCacheObserver, InternalCacheObserver", defaultValue = "BiclusterCountObserver;FitnessEvolutionMinObserver;NumEvaluationsObserver;ExternalCacheObserver;InternalCacheObserver")
+    @Option(names = {"--observers"}, description = "List of observers separated by semicolon. Possible values: BiclusterCountObserver, FitnessEvolutionMinObserver, FitnessEvolutionAvgObserver, FitnessEvolutionMaxObserver, NumEvaluationsObserver, ExternalCacheObserver, InternalCacheObserver. Use AUTO to select representation-aware defaults.", defaultValue = AUTO)
     private String strObservers;
 
     @Option(names = {"--num-threads"}, description = "Number of threads. Default: All")
@@ -150,6 +154,8 @@ public class Runner extends AbstractAlgorithmRunner implements Runnable {
         if (this.representation == Representation.INDIVIDUAL && !this.summariseIndividualObjectives.equals("Mean")) {
             throw new IllegalArgumentException("No se puede fijar la suma de objetivos individuales para la representación " + this.representation);
         }
+
+        String resolvedObservers = resolveObservers();
 
         // Read input dataset
         String[][] data = null;
@@ -205,7 +211,7 @@ public class Runner extends AbstractAlgorithmRunner implements Runnable {
         }
 
         // 4. Observadores
-        String[] strObserversArray = strObservers.split(";");
+        String[] strObserversArray = resolvedObservers.split(";");
         this.observers = new ObserverInterface[strObserversArray.length];
         for (int i = 0; i < this.observers.length; i++) {
             this.observers[i] = StaticUtils.getObserverFromString(strObserversArray[i], populationSize, fitnessFunctions, maxEvaluations / populationSize, externalCache, internalCaches, null);
@@ -215,14 +221,16 @@ public class Runner extends AbstractAlgorithmRunner implements Runnable {
         float genericInitialMinPercBics = genericInitialMinNumBics != -1 ? (float) genericInitialMinNumBics / numericData.length : 0.05f;
         float genericInitialMaxPercBics = genericInitialMaxNumBics != -1 ? (float) genericInitialMaxNumBics / numericData.length : 0.25f;
         RepresentationWrapper representationWrapper = StaticUtils.getRepresentationWrapperFromRepresentation(representation, numericData.length, numericData[0].length, specificNumBiclusters, genericInitialMinPercBics, genericInitialMaxPercBics, summariseIndividualObjectives);
+        String resolvedCrossoverOperator = resolveCrossoverOperator(representationWrapper);
+        String resolvedMutationOperator = resolveMutationOperator(representationWrapper);
         Problem problem = new ProblemObserver(numericData, types, fitnessFunctions, externalCache, internalCaches, representationWrapper, this.observers);
 
         // Operators
         // 1. Crossover
-        CrossoverOperator<CompositeSolution> crossover = representationWrapper.getCrossoverFromString(strCrossoverOperator, crossoverProbability, (int) Math.round(maxEvaluations * crossoverProbability));
+        CrossoverOperator<CompositeSolution> crossover = representationWrapper.getCrossoverFromString(resolvedCrossoverOperator, crossoverProbability, (int) Math.round(maxEvaluations * crossoverProbability));
         
         // 2. Mutation
-        MutationOperator<CompositeSolution> mutation = representationWrapper.getMutationFromString(strMutationOperator, mutationProbability, maxEvaluations);
+        MutationOperator<CompositeSolution> mutation = representationWrapper.getMutationFromString(resolvedMutationOperator, mutationProbability, maxEvaluations);
 
         // 3. Selection
         NaryTournamentSelection<CompositeSolution> selection = new BinaryTournamentSelection<>(new RankingAndCrowdingDistanceComparator<>());
@@ -279,6 +287,39 @@ public class Runner extends AbstractAlgorithmRunner implements Runnable {
     public static void main(String[] args) {
         CommandLine commandLine = new CommandLine(new Runner());
         commandLine.execute(args);
+    }
+
+    private String resolveCrossoverOperator(RepresentationWrapper representationWrapper) {
+        return isAuto(strCrossoverOperator) ? representationWrapper.getDefaultCrossoverOperator() : strCrossoverOperator;
+    }
+
+    private String resolveMutationOperator(RepresentationWrapper representationWrapper) {
+        return isAuto(strMutationOperator) ? representationWrapper.getDefaultMutationOperator() : strMutationOperator;
+    }
+
+    private String resolveObservers() {
+        return isAuto(strObservers) ? getDefaultObservers(representation, haveExternalCache, haveInternalCache) : strObservers;
+    }
+
+    private static boolean isAuto(String value) {
+        return value == null || AUTO.equalsIgnoreCase(value.trim());
+    }
+
+    static String getDefaultObservers(Representation representation, boolean haveExternalCache, boolean haveInternalCache) {
+        List<String> observerNames = new ArrayList<>();
+        observerNames.add("FitnessEvolutionMinObserver");
+
+        if (representation == Representation.GENERIC) {
+            observerNames.add("BiclusterCountObserver");
+        }
+        if (haveExternalCache) {
+            observerNames.add("ExternalCacheObserver");
+        }
+        if (haveInternalCache) {
+            observerNames.add("InternalCacheObserver");
+        }
+
+        return String.join(";", observerNames);
     }
 
     public List<CompositeSolution> getSolutions() {

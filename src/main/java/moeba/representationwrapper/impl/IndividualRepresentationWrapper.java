@@ -18,6 +18,8 @@ import org.uma.jmetal.solution.integersolution.IntegerSolution;
 import org.uma.jmetal.util.binarySet.BinarySet;
 
 public class IndividualRepresentationWrapper extends RepresentationWrapper {
+    private static final String DEFAULT_CROSSOVER_OPERATOR = "RowColUniformCrossover";
+    private static final String DEFAULT_MUTATION_OPERATOR = "RowColUniformMutation";
 
     public IndividualRepresentationWrapper(int numRows, int numColumns) {
         super(numRows, numColumns);
@@ -106,6 +108,16 @@ public class IndividualRepresentationWrapper extends RepresentationWrapper {
     }
 
     @Override
+    public String getDefaultCrossoverOperator() {
+        return DEFAULT_CROSSOVER_OPERATOR;
+    }
+
+    @Override
+    public String getDefaultMutationOperator() {
+        return DEFAULT_MUTATION_OPERATOR;
+    }
+
+    @Override
     public CrossoverOperator<CompositeSolution> getCrossoverFromString(String strCrossoverOperator, double crossoverProbability, int numApproxCrossovers) {
         CrossoverOperator<CompositeSolution> res;
         String[] listStrCrossovers = strCrossoverOperator.split(";");
@@ -114,7 +126,7 @@ public class IndividualRepresentationWrapper extends RepresentationWrapper {
             RowColBinaryCrossover rowColBinaryCrossover = getRowColBinaryCrossoverFromString(listStrCrossovers[0]);
             res = new IndividualCrossover(crossoverProbability, rowColBinaryCrossover);
         } else {
-            throw new RuntimeException("The number of crossover operators is not supported for GENERIC representation.");
+            throw new RuntimeException("The number of crossover operators is not supported for INDIVIDUAL representation.");
         }
         
         return res;
@@ -129,7 +141,7 @@ public class IndividualRepresentationWrapper extends RepresentationWrapper {
             RowColBinaryMutation rowColBinaryMutation = getRowColBinaryMutationFromString(listStrMutations[0]);
             res = new IndividualMutation(mutationProbability, numApproxMutations, rowColBinaryMutation);
         } else {
-            throw new RuntimeException("The number of mutation operators is not supported for GENERIC representation.");
+            throw new RuntimeException("The number of mutation operators is not supported for INDIVIDUAL representation.");
         }
         
         return res;
