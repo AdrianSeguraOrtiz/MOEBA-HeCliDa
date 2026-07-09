@@ -19,8 +19,10 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.function.BiFunction;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -105,6 +107,9 @@ import org.uma.jmetal.problem.Problem;
 
 @SuppressWarnings("deprecation")
 public final class StaticUtils {
+    private static final int NUMERIC_COLUMN = 0;
+    private static final int BOOLEAN_COLUMN = 1;
+    private static final int CATEGORICAL_COLUMN = 2;
 
     private static class ObjectivesParams {
         public double[][] data;
@@ -389,42 +394,143 @@ public final class StaticUtils {
      * @return A matrix with numeric values
      */
     public static double[][] dataToNumericMatrix(String[][] data, Class<?>[] types, int numThreads) {
-        double[][] numericData = new double[data.length][data[0].length];
-        ExecutorService executor = Executors.newFixedThreadPool(numThreads);
-
-        // Convert each column in parallel
-        for (int j = 0; j < data[0].length; j++) {
-            final int colIndex = j;
-            executor.execute(() -> {
-                // Determine how to convert the data in this column based on its type
-                if (types[colIndex] == Float.class || types[colIndex] == Double.class
-                        || types[colIndex] == Integer.class) {
-                    // Column is numeric, directly parse the values as doubles
-                    for (int i = 0; i < data.length; i++) {
-                        numericData[i][colIndex] = Double.parseDouble(data[i][colIndex]);
-                    }
-                } else if (types[colIndex] == Boolean.class) {
-                    // Column is boolean, map "Yes" to 1.0 and other values to 0.0
-                    for (int i = 0; i < data.length; i++) {
-                        numericData[i][colIndex] = data[i][colIndex].equalsIgnoreCase("Yes") ? 1.0 : 0.0;
-                    }
-                } else if (types[colIndex] == String.class) {
-                    // Column is string, convert to categorical values
-                    Map<String, Double> categoryToNumber = new HashMap<>();
-                    double categoryIndex = 0.0;
-                    for (int i = 0; i < data.length; i++) {
-                        String category = data[i][colIndex];
-                        if (!categoryToNumber.containsKey(category)) {
-                            categoryToNumber.put(category, categoryIndex);
-                            categoryIndex++;
-                        }
-                        numericData[i][colIndex] = categoryToNumber.get(category);
-                    }
-                }
-            });
+        if (numThreads <= 0) {
+            throw new IllegalArgumentException("The number of threads must be greater than 0.");
         }
-        executor.shutdown();
+        if (data.length == 0) {
+            return new double[0][0];
+        }
+        int numColumns = data[0].length;
+        if (types.length != numColumns) {
+            throw new IllegalArgumentException("The number of column types must match the number of data columns.");
+        }
+        validateDataRows(data, numColumns);
+
+        int[] columnTypes = getColumnTypeCodes(types);
+        double[][] numericData = new double[data.length][numColumns];
+        int numWorkers = Math.min(numThreads, Math.max(data.length, numColumns));
+        ExecutorService executor = Executors.newFixedThreadPool(numWorkers);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Double>[] categoricalMappings = new Map[numColumns];
+        try {
+            List<Future<?>> futures = new ArrayList<>();
+            for (int j = 0; j < numColumns; j++) {
+                if (columnTypes[j] == CATEGORICAL_COLUMN) {
+                    final int colIndex = j;
+                    futures.add(executor.submit(() -> categoricalMappings[colIndex] = buildCategoricalMapping(data, colIndex)));
+                }
+            }
+            waitForFutures(futures);
+
+            futures.clear();
+            int rowsPerTask = Math.max(1, (data.length + numWorkers - 1) / numWorkers);
+            for (int start = 0; start < data.length; start += rowsPerTask) {
+                final int from = start;
+                final int to = Math.min(start + rowsPerTask, data.length);
+                futures.add(executor.submit(() -> convertRowsToNumeric(
+                    data,
+                    columnTypes,
+                    categoricalMappings,
+                    numericData,
+                    from,
+                    to
+                )));
+            }
+            waitForFutures(futures);
+        } finally {
+            executor.shutdown();
+        }
+
         return numericData;
+    }
+
+    private static void validateDataRows(String[][] data, int numColumns) {
+        for (int i = 0; i < data.length; i++) {
+            if (data[i].length != numColumns) {
+                throw new IllegalArgumentException("All data rows must have the same number of columns.");
+            }
+        }
+    }
+
+    private static int[] getColumnTypeCodes(Class<?>[] types) {
+        int[] columnTypes = new int[types.length];
+        for (int i = 0; i < types.length; i++) {
+            if (types[i] == Float.class || types[i] == Double.class || types[i] == Integer.class) {
+                columnTypes[i] = NUMERIC_COLUMN;
+            } else if (types[i] == Boolean.class) {
+                columnTypes[i] = BOOLEAN_COLUMN;
+            } else if (types[i] == String.class) {
+                columnTypes[i] = CATEGORICAL_COLUMN;
+            } else {
+                throw new IllegalArgumentException("Unsupported type for column " + i + ": " + types[i]);
+            }
+        }
+        return columnTypes;
+    }
+
+    private static void waitForFutures(List<Future<?>> futures) {
+        try {
+            for (Future<?> future : futures) {
+                future.get();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Data conversion was interrupted.", e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException) {
+                throw (RuntimeException) cause;
+            }
+            throw new RuntimeException("Data conversion failed.", cause);
+        }
+    }
+
+    private static Map<String, Double> buildCategoricalMapping(String[][] data, int colIndex) {
+        Map<String, Double> categoryToNumber = new HashMap<>();
+        double categoryIndex = 0.0;
+        for (int i = 0; i < data.length; i++) {
+            String category = data[i][colIndex];
+            if (!categoryToNumber.containsKey(category)) {
+                categoryToNumber.put(category, categoryIndex);
+                categoryIndex++;
+            }
+        }
+        return categoryToNumber;
+    }
+
+    private static void convertRowsToNumeric(
+        String[][] data,
+        int[] columnTypes,
+        Map<String, Double>[] categoricalMappings,
+        double[][] numericData,
+        int from,
+        int to
+    ) {
+        for (int i = from; i < to; i++) {
+            String[] row = data[i];
+            double[] numericRow = numericData[i];
+            for (int j = 0; j < columnTypes.length; j++) {
+                if (columnTypes[j] == NUMERIC_COLUMN) {
+                    numericRow[j] = parseNumericValue(row[j], i, j);
+                } else if (columnTypes[j] == BOOLEAN_COLUMN) {
+                    numericRow[j] = row[j].equalsIgnoreCase("Yes") ? 1.0 : 0.0;
+                } else {
+                    numericRow[j] = categoricalMappings[j].get(row[j]);
+                }
+            }
+        }
+    }
+
+    private static double parseNumericValue(String value, int rowIndex, int colIndex) {
+        try {
+            return Double.parseDouble(value);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(
+                "Invalid numeric value at row " + rowIndex + ", column " + colIndex + ": " + value,
+                e
+            );
+        }
     }
 
     /**

@@ -8,6 +8,7 @@ import static moeba.StaticUtils.csvToStringMatrix;
 import java.io.File;
 import java.io.IOException;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -90,5 +91,72 @@ public class StaticUtilsTest {
         assertThrows(IllegalArgumentException.class, () -> {
             StaticUtils.jsonToClassArray(inputJsonFile, columnNames);
         });
+    }
+
+    @Test
+    public void testDataToNumericMatrixConvertsAllSupportedTypes() {
+        String[][] data = {
+            {"1", "2.5", "3.5", "Yes", "red"},
+            {"2", "4.5", "5.5", "No", "blue"},
+            {"3", "6.5", "7.5", "yes", "red"}
+        };
+        Class<?>[] types = {Integer.class, Double.class, Float.class, Boolean.class, String.class};
+
+        double[][] numericData = StaticUtils.dataToNumericMatrix(data, types, 3);
+
+        assertArrayEquals(new double[] {1.0, 2.5, 3.5, 1.0, 0.0}, numericData[0]);
+        assertArrayEquals(new double[] {2.0, 4.5, 5.5, 0.0, 1.0}, numericData[1]);
+        assertArrayEquals(new double[] {3.0, 6.5, 7.5, 1.0, 0.0}, numericData[2]);
+    }
+
+    @Test
+    public void testDataToNumericMatrixRejectsInvalidThreadCount() {
+        String[][] data = {{"1"}};
+        Class<?>[] types = {Integer.class};
+
+        assertThrows(IllegalArgumentException.class, () -> StaticUtils.dataToNumericMatrix(data, types, 0));
+    }
+
+    @Test
+    public void testDataToNumericMatrixRejectsMismatchedTypes() {
+        String[][] data = {{"1", "2"}};
+        Class<?>[] types = {Integer.class};
+
+        assertThrows(IllegalArgumentException.class, () -> StaticUtils.dataToNumericMatrix(data, types, 1));
+    }
+
+    @Test
+    public void testDataToNumericMatrixRejectsRowsWithDifferentColumnCounts() {
+        String[][] data = {
+            {"1", "2"},
+            {"3"}
+        };
+        Class<?>[] types = {Integer.class, Integer.class};
+
+        assertThrows(IllegalArgumentException.class, () -> StaticUtils.dataToNumericMatrix(data, types, 2));
+    }
+
+    @Test
+    public void testDataToNumericMatrixPropagatesNumericConversionErrors() {
+        String[][] data = {
+            {"1"},
+            {"not-a-number"}
+        };
+        Class<?>[] types = {Double.class};
+
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> StaticUtils.dataToNumericMatrix(data, types, 2)
+        );
+
+        assertEquals("Invalid numeric value at row 1, column 0: not-a-number", exception.getMessage());
+    }
+
+    @Test
+    public void testDataToNumericMatrixRejectsUnsupportedTypes() {
+        String[][] data = {{"1"}};
+        Class<?>[] types = {Object.class};
+
+        assertThrows(IllegalArgumentException.class, () -> StaticUtils.dataToNumericMatrix(data, types, 1));
     }
 }
