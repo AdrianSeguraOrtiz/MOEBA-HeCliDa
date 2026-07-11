@@ -2,6 +2,7 @@ package moeba.utils.observer;
 
 import moeba.ColumnType;
 import moeba.Problem;
+import moeba.fitnessfunction.FitnessFunction;
 import moeba.representationwrapper.RepresentationWrapper;
 import moeba.representationwrapper.impl.GenericRepresentationWrapper;
 import moeba.utils.observer.impl.BiclusterCountObserver;
@@ -35,6 +36,15 @@ public class ProblemObserver extends Problem {
             RepresentationWrapper representationWrapper, ObserverInterface[] observers) {
 
         super(data, types, strFitnessFunctions, externalCache, internalCaches, representationWrapper);
+        checkObservers(observers);
+        this.observers = observers;
+    }
+
+    public ProblemObserver(FitnessFunction[] fitnessFunctions,
+            CacheStorage<String, Double[]> externalCache, CacheStorage<String, Double>[] internalCaches,
+            RepresentationWrapper representationWrapper, ObserverInterface[] observers) {
+
+        super(fitnessFunctions, externalCache, internalCaches, representationWrapper);
         checkObservers(observers);
         this.observers = observers;
     }

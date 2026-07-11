@@ -1,13 +1,18 @@
 package moeba;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 
+import moeba.fitnessfunction.FitnessFunction;
+import moeba.fitnessfunction.impl.BiclusterSizeNormComp;
+import moeba.fitnessfunction.impl.DistanceBetweenBiclustersNormComp;
 import moeba.representationwrapper.impl.GenericRepresentationWrapper;
 import moeba.representationwrapper.impl.IndividualRepresentationWrapper;
+import moeba.utils.observer.ProblemObserver;
 import org.junit.jupiter.api.Test;
 
 class ProblemTest {
@@ -39,6 +44,47 @@ class ProblemTest {
             null,
             null,
             new IndividualRepresentationWrapper(4, 4)
+        ));
+    }
+
+    @Test
+    void problemAcceptsInstantiatedFitnessFunctions() {
+        Problem problem = new Problem(
+            new FitnessFunction[] {new BiclusterSizeNormComp(data, numericTypes, null, null, 0.5)},
+            null,
+            null,
+            new IndividualRepresentationWrapper(4, 4)
+        );
+
+        assertEquals(1, problem.getNumberOfObjectives());
+        assertTrue(problem.getFitnessFunctions()[0] instanceof BiclusterSizeNormComp);
+    }
+
+    @Test
+    void problemRejectsInstantiatedFitnessFunctionsIncompatibleWithRepresentation() {
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> new Problem(
+                new FitnessFunction[] {new DistanceBetweenBiclustersNormComp(data, numericTypes, null, null)},
+                null,
+                null,
+                new IndividualRepresentationWrapper(4, 4)
+            )
+        );
+
+        assertTrue(exception.getMessage().contains("DistanceBetweenBiclustersNormComp"));
+        assertTrue(exception.getMessage().contains("IndividualBiclusterFitnessFunction"));
+        assertTrue(exception.getMessage().contains("IndividualRepresentationWrapper"));
+    }
+
+    @Test
+    void problemObserverAcceptsInstantiatedFitnessFunctions() {
+        assertDoesNotThrow(() -> new ProblemObserver(
+            new FitnessFunction[] {new BiclusterSizeNormComp(data, numericTypes, null, null, 0.5)},
+            null,
+            null,
+            new IndividualRepresentationWrapper(4, 4),
+            new ProblemObserver.ObserverInterface[0]
         ));
     }
 
