@@ -463,6 +463,7 @@ public final class StaticUtils {
      * Converts a data matrix with string values to a matrix with numeric values.
      * Nominal categories are assigned transient numeric identifiers by first occurrence.
      * Ordinal categories are assigned numeric identifiers by their declared order.
+     * Null cells are preserved as missing values using {@link Double#NaN}.
      *
      * @param data The data matrix with string values
      * @param types The types of each column in the data matrix
@@ -476,8 +477,14 @@ public final class StaticUtils {
         if (types == null) {
             throw new IllegalArgumentException("Column types cannot be null.");
         }
+        if (data == null) {
+            throw new IllegalArgumentException("Data matrix cannot be null.");
+        }
         if (data.length == 0) {
             return new double[0][0];
+        }
+        if (data[0] == null) {
+            throw new IllegalArgumentException("All data rows must have the same number of columns.");
         }
         int numColumns = data[0].length;
         if (types.length != numColumns) {
@@ -528,7 +535,7 @@ public final class StaticUtils {
 
     private static void validateDataRows(String[][] data, int numColumns) {
         for (int i = 0; i < data.length; i++) {
-            if (data[i].length != numColumns) {
+            if (data[i] == null || data[i].length != numColumns) {
                 throw new IllegalArgumentException("All data rows must have the same number of columns.");
             }
         }
@@ -582,6 +589,9 @@ public final class StaticUtils {
         double categoryIndex = 0.0;
         for (int i = 0; i < data.length; i++) {
             String category = data[i][colIndex];
+            if (category == null) {
+                continue;
+            }
             if (!categoryToNumber.containsKey(category)) {
                 categoryToNumber.put(category, categoryIndex);
                 categoryIndex++;
@@ -614,7 +624,9 @@ public final class StaticUtils {
             String[] row = data[i];
             double[] numericRow = numericData[i];
             for (int j = 0; j < columnTypes.length; j++) {
-                if (columnTypes[j] == NUMERIC_COLUMN) {
+                if (row[j] == null) {
+                    numericRow[j] = Double.NaN;
+                } else if (columnTypes[j] == NUMERIC_COLUMN) {
                     numericRow[j] = parseNumericValue(row[j], i, j);
                 } else if (columnTypes[j] == BOOLEAN_COLUMN) {
                     numericRow[j] = parseBooleanValue(row[j], i, j);

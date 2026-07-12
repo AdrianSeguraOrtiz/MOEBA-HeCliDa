@@ -207,6 +207,28 @@ public class StaticUtilsTest {
     }
 
     @Test
+    public void testDataToNumericMatrixPreservesMissingValuesForEveryColumnKind() {
+        String[][] data = {
+            {null, null, null, null},
+            {"1.5", "yes", "red", "high"}
+        };
+        ColumnType[] types = {
+            ColumnType.numeric(),
+            ColumnType.bool(),
+            ColumnType.categoricalNominal(),
+            ColumnType.categoricalOrdinal(Arrays.asList("low", "high"))
+        };
+
+        double[][] numericData = StaticUtils.dataToNumericMatrix(data, types, 2);
+
+        assertTrue(Double.isNaN(numericData[0][0]));
+        assertTrue(Double.isNaN(numericData[0][1]));
+        assertTrue(Double.isNaN(numericData[0][2]));
+        assertTrue(Double.isNaN(numericData[0][3]));
+        assertArrayEquals(new double[] {1.5, 1.0, 0.0, 1.0}, numericData[1]);
+    }
+
+    @Test
     public void testDataToNumericMatrixRejectsInvalidThreadCount() {
         String[][] data = {{"1"}};
         ColumnType[] types = {ColumnType.numeric()};
@@ -231,6 +253,23 @@ public class StaticUtilsTest {
         ColumnType[] types = {ColumnType.numeric(), ColumnType.numeric()};
 
         assertThrows(IllegalArgumentException.class, () -> StaticUtils.dataToNumericMatrix(data, types, 2));
+    }
+
+    @Test
+    public void testDataToNumericMatrixRejectsNullMatrixAndRowsWithControlledError() {
+        String[][] firstRowNull = {null, {"1"}};
+        String[][] laterRowNull = {{"1"}, null};
+        ColumnType[] types = {ColumnType.numeric()};
+
+        assertThrows(IllegalArgumentException.class, () -> StaticUtils.dataToNumericMatrix(null, types, 1));
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> StaticUtils.dataToNumericMatrix(firstRowNull, types, 1)
+        );
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> StaticUtils.dataToNumericMatrix(laterRowNull, types, 1)
+        );
     }
 
     @Test
