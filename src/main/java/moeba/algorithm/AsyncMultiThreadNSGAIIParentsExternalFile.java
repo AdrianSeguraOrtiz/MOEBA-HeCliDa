@@ -1,7 +1,6 @@
 package moeba.algorithm;
 
 import java.util.List;
-import org.uma.jmetal.util.termination.Termination;
 import org.uma.jmetal.operator.crossover.CrossoverOperator;
 import org.uma.jmetal.operator.mutation.MutationOperator;
 import org.uma.jmetal.parallel.asynchronous.task.ParallelTask;
@@ -9,6 +8,7 @@ import org.uma.jmetal.problem.Problem;
 import org.uma.jmetal.solution.Solution;
 import org.uma.jmetal.util.archive.Archive;
 import org.uma.jmetal.util.archive.impl.NonDominatedSolutionListArchive;
+import org.uma.jmetal.util.termination.Termination;
 
 /**
  * Extends AsyncMultiThreadNSGAIIParents to support the maintenance of an external archive.
@@ -22,7 +22,7 @@ import org.uma.jmetal.util.archive.impl.NonDominatedSolutionListArchive;
 public class AsyncMultiThreadNSGAIIParentsExternalFile<S extends Solution<?>>
     extends AsyncMultiThreadNSGAIIParents<S> {
 
-  protected Archive<S> externalArchive; // Archive to store non-dominated solutions.
+  protected final Archive<S> externalArchive;
 
   /**
    * Constructor to initialize the algorithm with necessary operators, problem definition,
@@ -34,8 +34,21 @@ public class AsyncMultiThreadNSGAIIParentsExternalFile<S extends Solution<?>>
    * @param populationSize  Size of the population.
    * @param crossover       Crossover operator to be used in the algorithm.
    * @param mutation        Mutation operator to be used in the algorithm.
-   * @param termination     Condition that determines when the algorithm should terminate.
+   * @param maximumEvaluations Maximum number of solutions to evaluate.
    */
+  public AsyncMultiThreadNSGAIIParentsExternalFile(
+      int numberOfCores,
+      Problem<S> problem,
+      int populationSize,
+      CrossoverOperator<S> crossover,
+      MutationOperator<S> mutation,
+      int maximumEvaluations) {
+    super(numberOfCores, problem, populationSize, crossover, mutation, maximumEvaluations);
+
+    externalArchive = createArchive(populationSize);
+  }
+
+  /** Creates archived NSGA-II with a general jMetal termination condition. */
   public AsyncMultiThreadNSGAIIParentsExternalFile(
       int numberOfCores,
       Problem<S> problem,
@@ -44,10 +57,11 @@ public class AsyncMultiThreadNSGAIIParentsExternalFile<S extends Solution<?>>
       MutationOperator<S> mutation,
       Termination termination) {
     super(numberOfCores, problem, populationSize, crossover, mutation, termination);
+    externalArchive = createArchive(populationSize);
+  }
 
-    // Initializes the external archive with a NonDominatedSolutionListArchive, allowing
-    // for the storage of non-dominated solutions up to a specified limit (populationSize).
-    externalArchive = new BestSolutionsArchive<>(new NonDominatedSolutionListArchive<>(), populationSize);
+  private static <S extends Solution<?>> Archive<S> createArchive(int populationSize) {
+    return new BestSolutionsArchive<>(new NonDominatedSolutionListArchive<>(), populationSize);
   }
 
   /**

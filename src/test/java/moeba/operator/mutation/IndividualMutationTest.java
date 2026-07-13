@@ -9,6 +9,7 @@ import moeba.operator.mutation.individual.rowcolbinary.impl.RowColUniformMutatio
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.uma.jmetal.util.binarySet.BinarySet;
+import org.uma.jmetal.util.pseudorandom.JMetalRandom;
 
 class IndividualMutationTest {
 
@@ -53,6 +54,25 @@ class IndividualMutationTest {
         assertThrows(IllegalArgumentException.class, () -> mutation.execute(solution, -0.1));
         assertThrows(IllegalArgumentException.class, () -> mutation.execute(solution, 1.1));
         assertThrows(IllegalArgumentException.class, () -> mutation.execute(solution, Double.NaN));
+    }
+
+    @Test
+    void defaultUniformMutationUsesTheConfiguredJMetalSeed() {
+        JMetalRandom random = JMetalRandom.getInstance();
+        long previousSeed = random.getSeed();
+        try {
+            BinarySet firstRun = binarySet(1, 0, 1, 0, 1, 0, 1, 0);
+            random.setSeed(56789L);
+            new RowColUniformMutation().execute(firstRun, 0.5);
+
+            BinarySet secondRun = binarySet(1, 0, 1, 0, 1, 0, 1, 0);
+            random.setSeed(56789L);
+            new RowColUniformMutation().execute(secondRun, 0.5);
+
+            assertEquals(firstRun, secondRun);
+        } finally {
+            random.setSeed(previousSeed);
+        }
     }
 
     private static BinarySet binarySet(int... bits) {

@@ -4,13 +4,14 @@ import java.util.Random;
 
 import moeba.operator.mutation.individual.rowcolbinary.RowColBinaryMutation;
 import org.uma.jmetal.util.binarySet.BinarySet;
+import org.uma.jmetal.util.pseudorandom.JMetalRandom;
 
 public class RowColUniformMutation implements RowColBinaryMutation {
     
-    private Random random;
+    private final Random random;
 
     public RowColUniformMutation() {
-        this.random = new Random();
+        this(new Random(JMetalRandom.getInstance().nextInt(0, Integer.MAX_VALUE - 1)));
     }
 
     public RowColUniformMutation(Random random) {

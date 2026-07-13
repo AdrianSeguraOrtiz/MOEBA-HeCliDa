@@ -5,7 +5,6 @@ import org.uma.jmetal.operator.crossover.CrossoverOperator;
 import org.uma.jmetal.operator.mutation.MutationOperator;
 import org.uma.jmetal.operator.selection.SelectionOperator;
 import org.uma.jmetal.parallel.asynchronous.multithreaded.Master;
-import org.uma.jmetal.parallel.asynchronous.multithreaded.Worker;
 import org.uma.jmetal.parallel.asynchronous.task.ParallelTask;
 import org.uma.jmetal.problem.Problem;
 import org.uma.jmetal.solution.Solution;
@@ -14,11 +13,13 @@ import org.uma.jmetal.util.observable.Observable;
 import org.uma.jmetal.util.observable.impl.DefaultObservable;
 import org.uma.jmetal.util.pseudorandom.JMetalRandom;
 import org.uma.jmetal.util.termination.Termination;
+import org.uma.jmetal.util.termination.impl.TerminationByEvaluations;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
 
 /**
@@ -31,22 +32,36 @@ import java.util.stream.IntStream;
  */
 public class AsyncMultiThreadGAParents<S extends Solution<?>>
     extends Master<ParallelTask<S>, List<S>> {
-  private Problem<S> problem;
-  private CrossoverOperator<S> crossover;
-  private MutationOperator<S> mutation;
-  private SelectionOperator<List<S>, S> selection;
-  private Replacement<S> replacement;
-  private Termination termination;
-
+  private final Problem<S> problem;
+  private final CrossoverOperator<S> crossover;
+  private final MutationOperator<S> mutation;
+  private final SelectionOperator<List<S>, S> selection;
+  private final Replacement<S> replacement;
   private List<S> population = new ArrayList<>();
-  private int populationSize;
+  private final int populationSize;
   private int evaluations = 0;
+  private int submittedTasks = 0;
+  private final int maximumScheduledEvaluations;
+  private final Termination termination;
   private long initTime;
 
-  private Map<String, Object> attributes;
-  private Observable<Map<String, Object>> observable;
+  private final Map<String, Object> attributes;
+  private final Observable<Map<String, Object>> observable;
+  private final List<Thread> workers = new ArrayList<>();
+  private final AtomicReference<Throwable> workerFailure = new AtomicReference<>();
+  private final ParallelTask<S> stopTask = new StopTask<>();
 
-  private int numberOfCores;
+  private static final class StopTask<S> implements ParallelTask<S> {
+    @Override
+    public S getContents() {
+      return null;
+    }
+
+    @Override
+    public long getIdentifier() {
+      return Long.MIN_VALUE;
+    }
+  }
 
   /**
    * Constructs an AsyncMultiThreadGAParents object with the specified parameters.
@@ -58,7 +73,33 @@ public class AsyncMultiThreadGAParents<S extends Solution<?>>
    * @param mutation        The mutation operator to be used.
    * @param selection       The selection operator to be used for selecting parents.
    * @param replacement     The replacement strategy to be used for creating the new population.
-   * @param termination     The termination condition to be checked to stop the algorithm.
+   * @param maximumEvaluations Maximum number of solutions to evaluate.
+   */
+  public AsyncMultiThreadGAParents(
+      int numberOfCores,
+      Problem<S> problem,
+      int populationSize,
+      CrossoverOperator<S> crossover,
+      MutationOperator<S> mutation,
+      SelectionOperator<List<S>, S> selection,
+      Replacement<S> replacement,
+      int maximumEvaluations) {
+    this(
+        numberOfCores,
+        problem,
+        populationSize,
+        crossover,
+        mutation,
+        selection,
+        replacement,
+        new TerminationByEvaluations(maximumEvaluations),
+        maximumEvaluations
+    );
+  }
+
+  /**
+   * Creates an asynchronous algorithm with a general jMetal termination condition.
+   * Evaluations already running when the condition is met are allowed to finish.
    */
   public AsyncMultiThreadGAParents(
       int numberOfCores,
@@ -69,21 +110,45 @@ public class AsyncMultiThreadGAParents<S extends Solution<?>>
       SelectionOperator<List<S>, S> selection,
       Replacement<S> replacement,
       Termination termination) {
+    this(
+        numberOfCores,
+        problem,
+        populationSize,
+        crossover,
+        mutation,
+        selection,
+        replacement,
+        termination,
+        Integer.MAX_VALUE
+    );
+  }
+
+  private AsyncMultiThreadGAParents(
+      int numberOfCores,
+      Problem<S> problem,
+      int populationSize,
+      CrossoverOperator<S> crossover,
+      MutationOperator<S> mutation,
+      SelectionOperator<List<S>, S> selection,
+      Replacement<S> replacement,
+      Termination termination,
+      int maximumScheduledEvaluations) {
     super(numberOfCores);
+    Check.that(numberOfCores > 0, "The number of cores must be positive");
+    Check.that(populationSize > 0, "The population size must be positive");
+    Check.that(maximumScheduledEvaluations > 0, "The maximum number of evaluations must be positive");
+    Check.notNull(termination);
     this.problem = problem;
     this.crossover = crossover;
     this.mutation = mutation;
     this.populationSize = populationSize;
+    this.maximumScheduledEvaluations = maximumScheduledEvaluations;
     this.termination = termination;
     this.selection = selection;
     this.replacement = replacement;
 
     attributes = new HashMap<>();
     observable = new DefaultObservable<>("Observable");
-
-    this.numberOfCores = numberOfCores;
-
-    createWorkers(numberOfCores, problem);
   }
 
   /**
@@ -93,13 +158,36 @@ public class AsyncMultiThreadGAParents<S extends Solution<?>>
    * @param problem       The problem to be solved, used in the evaluation of solutions.
    */
   private void createWorkers(int numberOfCores, Problem<S> problem) {
-    IntStream.range(0, numberOfCores).forEach(i -> new Worker<>(
-        (task) -> {
-          problem.evaluate(task.getContents());
-          return ParallelTask.create(createTaskIdentifier(), task.getContents());
-        },
-        pendingTaskQueue,
-        completedTaskQueue).start());
+    IntStream.range(0, numberOfCores).forEach(i -> {
+      Thread worker = new Thread(
+          () -> {
+            while (!Thread.currentThread().isInterrupted()) {
+              ParallelTask<S> task;
+              try {
+                task = pendingTaskQueue.take();
+              } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                return;
+              }
+              if (task == stopTask) {
+                return;
+              }
+
+              try {
+                problem.evaluate(task.getContents());
+              } catch (Throwable failure) {
+                workerFailure.compareAndSet(null, failure);
+              }
+
+              completedTaskQueue.add(ParallelTask.create(task.getIdentifier(), task.getContents()));
+            }
+          },
+          "moeba-async-worker-" + i
+      );
+      worker.setDaemon(true);
+      workers.add(worker);
+      worker.start();
+    });
   }
 
   /**
@@ -165,16 +253,29 @@ public class AsyncMultiThreadGAParents<S extends Solution<?>>
    */
   @Override
   public void submitInitialTasks(List<ParallelTask<S>> initialTaskList) {
-    if (initialTaskList.size() >= numberOfCores) {
-      initialTaskList.forEach(this::submitTask);
-    } else {
-      int idleWorkers = numberOfCores - initialTaskList.size();
-      initialTaskList.forEach(this::submitTask);
-      while (idleWorkers > 0) {
-        submitTask(createNewTask());
-        idleWorkers--;
-      }
+    int initialTasksToSubmit = Math.min(
+        Math.min(numberOfCores, initialTaskList.size()),
+        maximumScheduledEvaluations - submittedTasks
+    );
+    for (int i = 0; i < initialTasksToSubmit; i++) {
+      submitTask(initialTaskList.remove(0));
     }
+  }
+
+  @Override
+  public ParallelTask<S> waitForComputedTask() {
+    ParallelTask<S> task;
+    try {
+      task = completedTaskQueue.take();
+    } catch (InterruptedException exception) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Interrupted while waiting for a parallel evaluation", exception);
+    }
+    Throwable failure = workerFailure.get();
+    if (failure != null) {
+      throw new IllegalStateException("Parallel solution evaluation failed", failure);
+    }
+    return task;
   }
 
   /**
@@ -203,7 +304,10 @@ public class AsyncMultiThreadGAParents<S extends Solution<?>>
    */
   @Override
   public void submitTask(ParallelTask<S> task) {
-    pendingTaskQueue.add(task);
+    if (submittedTasks < maximumScheduledEvaluations) {
+      pendingTaskQueue.add(task);
+      submittedTasks++;
+    }
   }
 
   /**
@@ -214,7 +318,7 @@ public class AsyncMultiThreadGAParents<S extends Solution<?>>
   @Override
   public ParallelTask<S> createNewTask() {
     int numberOfParents = crossover.getNumberOfRequiredParents();
-    if (population.size() > numberOfParents) {
+    if (population.size() >= numberOfParents) {
       List<S> parents = new ArrayList<>(numberOfParents);
       for (int i = 0; i < numberOfParents; i++) {
         parents.add(selection.execute(population));
@@ -246,7 +350,50 @@ public class AsyncMultiThreadGAParents<S extends Solution<?>>
   @Override
   public void run() {
     initTime = System.currentTimeMillis();
-    super.run();
+    try {
+      createWorkers(numberOfCores, problem);
+      List<ParallelTask<S>> initialTasks = createInitialTasks();
+      submitInitialTasks(initialTasks);
+      initProgress();
+      while (stoppingConditionIsNotMet()) {
+        processComputedTask(waitForComputedTask());
+        updateProgress();
+        if (stoppingConditionIsNotMet() && submittedTasks < maximumScheduledEvaluations) {
+          if (thereAreInitialTasksPending(initialTasks)) {
+            submitTask(getInitialTask(initialTasks));
+          } else {
+            submitTask(createNewTask());
+          }
+        }
+      }
+    } finally {
+      stopWorkers();
+    }
+  }
+
+  private void stopWorkers() {
+    pendingTaskQueue.clear();
+    for (int i = 0; i < workers.size(); i++) {
+      pendingTaskQueue.add(stopTask);
+    }
+    boolean interrupted = false;
+    for (Thread worker : workers) {
+      boolean joined = false;
+      while (!joined) {
+        try {
+          worker.join();
+          joined = true;
+        } catch (InterruptedException exception) {
+          interrupted = true;
+        }
+      }
+    }
+    pendingTaskQueue.clear();
+    completedTaskQueue.clear();
+    workers.clear();
+    if (interrupted) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   /**

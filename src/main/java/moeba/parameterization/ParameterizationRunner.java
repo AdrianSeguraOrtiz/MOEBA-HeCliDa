@@ -263,7 +263,7 @@ public class ParameterizationRunner implements Runnable {
                     mutation,
                     selection,
                     replacement,
-                    termination);
+                    exercise.evaluations);
 
             algorithm.run();
             long endTime = System.currentTimeMillis();

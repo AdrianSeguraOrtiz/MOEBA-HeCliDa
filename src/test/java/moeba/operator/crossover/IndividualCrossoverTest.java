@@ -9,6 +9,7 @@ import moeba.operator.crossover.individual.rowcolbinary.impl.RowColUniformCrosso
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.uma.jmetal.util.binarySet.BinarySet;
+import org.uma.jmetal.util.pseudorandom.JMetalRandom;
 
 class IndividualCrossoverTest {
 
@@ -33,6 +34,28 @@ class IndividualCrossoverTest {
             IllegalArgumentException.class,
             () -> crossover.execute(new BinarySet(2), new BinarySet(3))
         );
+    }
+
+    @Test
+    void defaultUniformCrossoverUsesTheConfiguredJMetalSeed() {
+        JMetalRandom random = JMetalRandom.getInstance();
+        long previousSeed = random.getSeed();
+        try {
+            BinarySet firstRunFirst = binarySet(1, 0, 1, 0, 1, 0, 1, 0);
+            BinarySet firstRunSecond = binarySet(0, 1, 0, 1, 0, 1, 0, 1);
+            random.setSeed(91234L);
+            new RowColUniformCrossover().execute(firstRunFirst, firstRunSecond);
+
+            BinarySet secondRunFirst = binarySet(1, 0, 1, 0, 1, 0, 1, 0);
+            BinarySet secondRunSecond = binarySet(0, 1, 0, 1, 0, 1, 0, 1);
+            random.setSeed(91234L);
+            new RowColUniformCrossover().execute(secondRunFirst, secondRunSecond);
+
+            assertEquals(firstRunFirst, secondRunFirst);
+            assertEquals(firstRunSecond, secondRunSecond);
+        } finally {
+            random.setSeed(previousSeed);
+        }
     }
 
     private static BinarySet binarySet(int... bits) {

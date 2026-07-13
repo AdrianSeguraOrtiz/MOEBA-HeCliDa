@@ -278,10 +278,6 @@ public class Runner extends AbstractAlgorithmRunner implements Runnable {
 
         System.out.println("Threads used: " + numThreads);
         System.out.println("Total execution time: " + result.computingTime + "ms");
-            
-        if (numThreads > 1) {
-            System.exit(0);
-        }
     }
 
     public static void main(String[] args) {

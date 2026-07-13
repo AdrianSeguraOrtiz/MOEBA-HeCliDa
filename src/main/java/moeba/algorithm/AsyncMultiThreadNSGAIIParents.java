@@ -1,9 +1,12 @@
 package moeba.algorithm;
 
+import java.util.List;
+
 import org.uma.jmetal.experimental.componentbasedalgorithm.catalogue.replacement.Replacement;
 import org.uma.jmetal.experimental.componentbasedalgorithm.catalogue.replacement.impl.RankingAndDensityEstimatorReplacement;
 import org.uma.jmetal.operator.crossover.CrossoverOperator;
 import org.uma.jmetal.operator.mutation.MutationOperator;
+import org.uma.jmetal.operator.selection.SelectionOperator;
 import org.uma.jmetal.operator.selection.impl.BinaryTournamentSelection;
 import org.uma.jmetal.problem.Problem;
 import org.uma.jmetal.solution.Solution;
@@ -32,7 +35,7 @@ public class AsyncMultiThreadNSGAIIParents<S extends Solution<?>>
    * @param populationSize  The size of the population.
    * @param crossover       The crossover operator to be used for generating new offspring.
    * @param mutation        The mutation operator to be applied to the offspring.
-   * @param termination     The termination condition to determine when the algorithm should stop.
+   * @param maximumEvaluations Maximum number of solutions to evaluate.
    */
   public AsyncMultiThreadNSGAIIParents(
       int numberOfCores,
@@ -40,17 +43,48 @@ public class AsyncMultiThreadNSGAIIParents<S extends Solution<?>>
       int populationSize,
       CrossoverOperator<S> crossover,
       MutationOperator<S> mutation,
+      int maximumEvaluations) {
+    super(
+        numberOfCores,
+        problem,
+        populationSize,
+        crossover,
+        mutation,
+        createSelection(),
+        createReplacement(),
+        maximumEvaluations
+    );
+  }
+
+  /** Creates NSGA-II with a general jMetal termination condition. */
+  public AsyncMultiThreadNSGAIIParents(
+      int numberOfCores,
+      Problem<S> problem,
+      int populationSize,
+      CrossoverOperator<S> crossover,
+      MutationOperator<S> mutation,
       Termination termination) {
-    super(numberOfCores,problem, populationSize, crossover,mutation,
-          // BinaryTournamentSelection is used for selecting parents for crossover. 
-          // It uses a RankingAndCrowdingDistanceComparator to maintain diversity.
-          new BinaryTournamentSelection<>(new RankingAndCrowdingDistanceComparator<>()),
-          // RankingAndDensityEstimatorReplacement combines ranking and crowding distance to replace individuals.
-          // It ensures a diverse front of non-dominated solutions.
-          new RankingAndDensityEstimatorReplacement<>(
-                  new MergeNonDominatedSortRanking<>(), // Sorts individuals based on dominance ranking.
-                  new CrowdingDistanceDensityEstimator<>(), // Assigns crowding distance to maintain diversity.
-                  Replacement.RemovalPolicy.oneShot), // Specifies the removal policy for the replacement strategy.
-          termination);
+    super(
+        numberOfCores,
+        problem,
+        populationSize,
+        crossover,
+        mutation,
+        createSelection(),
+        createReplacement(),
+        termination
+    );
+  }
+
+  private static <S extends Solution<?>> SelectionOperator<List<S>, S> createSelection() {
+    return new BinaryTournamentSelection<>(new RankingAndCrowdingDistanceComparator<>());
+  }
+
+  private static <S extends Solution<?>> Replacement<S> createReplacement() {
+    return new RankingAndDensityEstimatorReplacement<>(
+        new MergeNonDominatedSortRanking<>(),
+        new CrowdingDistanceDensityEstimator<>(),
+        Replacement.RemovalPolicy.oneShot
+    );
   }
 }

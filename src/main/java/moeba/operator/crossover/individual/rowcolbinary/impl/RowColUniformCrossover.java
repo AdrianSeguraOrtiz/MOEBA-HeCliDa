@@ -4,12 +4,13 @@ import java.util.Random;
 
 import moeba.operator.crossover.individual.rowcolbinary.RowColBinaryCrossover;
 import org.uma.jmetal.util.binarySet.BinarySet;
+import org.uma.jmetal.util.pseudorandom.JMetalRandom;
 
 public class RowColUniformCrossover implements RowColBinaryCrossover {
-    private Random random;
+    private final Random random;
 
     public RowColUniformCrossover() {
-        this.random = new Random();
+        this(new Random(JMetalRandom.getInstance().nextInt(0, Integer.MAX_VALUE - 1)));
     }
 
     public RowColUniformCrossover(Random random) {

@@ -757,7 +757,7 @@ public final class StaticUtils {
                         mutation,
                         selection,
                         new MuPlusLambdaReplacement<>(new ObjectiveComparator<>(0)),
-                        termination);
+                        maxEvaluations);
 
                 algorithm.run();
                 long endTime = System.currentTimeMillis();
@@ -790,7 +790,7 @@ public final class StaticUtils {
                         populationSize,
                         crossover,
                         mutation,
-                        termination);
+                        maxEvaluations);
 
                 algorithm.run();
                 long endTime = System.currentTimeMillis();
@@ -807,7 +807,7 @@ public final class StaticUtils {
                         populationSize,
                         crossover,
                         mutation,
-                        termination);
+                        maxEvaluations);
 
                 algorithm.run();
                 long endTime = System.currentTimeMillis();

@@ -20,6 +20,7 @@ import org.uma.jmetal.solution.compositesolution.CompositeSolution;
 public class ProblemObserver extends Problem {
     // Array of observer instances to be notified upon solution evaluation
     protected ObserverInterface[] observers;
+    private final Object observerNotificationLock = new Object();
 
     /**
      * Defines the contract for observer instances that wish to be notified about solution evaluations.
@@ -59,8 +60,12 @@ public class ProblemObserver extends Problem {
         // Call the super class's evaluate method to perform the actual evaluation
         CompositeSolution result = super.evaluate(solution);
         // Notify all registered observers with the evaluation result
-        for (ObserverInterface observer : observers) {
-            observer.register(result);
+        if (observers.length > 0) {
+            synchronized (observerNotificationLock) {
+                for (ObserverInterface observer : observers) {
+                    observer.register(result);
+                }
+            }
         }
         // Return the evaluated solution
         return result;
