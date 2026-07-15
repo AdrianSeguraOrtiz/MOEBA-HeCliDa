@@ -29,7 +29,7 @@ class AsyncMultiThreadNSGAIIParentsTest {
     void honorsEvaluationBudgetWithoutReevaluatingInitialSolutionsAndStopsWorkers() {
         IndividualRepresentationWrapper wrapper = new IndividualRepresentationWrapper(4, 4);
         CountingObserver observer = new CountingObserver();
-        ProblemObserver problem = problem(wrapper, observer);
+        CountingProblem problem = problem(wrapper, observer);
         CountingCrossover crossover = new CountingCrossover(crossover(wrapper));
         AsyncMultiThreadNSGAIIParents<CompositeSolution> algorithm = new AsyncMultiThreadNSGAIIParents<>(
             2,
@@ -44,6 +44,7 @@ class AsyncMultiThreadNSGAIIParentsTest {
 
         assertEquals(MAXIMUM_EVALUATIONS, observer.count.get());
         assertEquals(MAXIMUM_EVALUATIONS, observer.uniqueSolutions.size());
+        assertEquals(POPULATION_SIZE, problem.createdSolutions.get());
         assertTrue(crossover.count.get() > 0);
         assertEquals(POPULATION_SIZE, algorithm.getResult().size());
         assertNoWorkersRunning();
@@ -99,14 +100,12 @@ class AsyncMultiThreadNSGAIIParentsTest {
         assertNoWorkersRunning();
     }
 
-    private static ProblemObserver problem(
+    private static CountingProblem problem(
         IndividualRepresentationWrapper wrapper,
         ProblemObserver.ObserverInterface observer
     ) {
-        return new ProblemObserver(
+        return new CountingProblem(
             objectives(),
-            null,
-            null,
             wrapper,
             new ProblemObserver.ObserverInterface[] {observer}
         );
@@ -160,6 +159,24 @@ class AsyncMultiThreadNSGAIIParentsTest {
         @Override
         public void writeToFile(String file) {
             // No output is needed for this evaluation-budget test.
+        }
+    }
+
+    private static final class CountingProblem extends ProblemObserver {
+        private final AtomicInteger createdSolutions = new AtomicInteger();
+
+        private CountingProblem(
+            FitnessFunction[] objectives,
+            IndividualRepresentationWrapper wrapper,
+            ProblemObserver.ObserverInterface[] observers
+        ) {
+            super(objectives, null, null, wrapper, observers);
+        }
+
+        @Override
+        public CompositeSolution createSolution() {
+            createdSolutions.incrementAndGet();
+            return super.createSolution();
         }
     }
 

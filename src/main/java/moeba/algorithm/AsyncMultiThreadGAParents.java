@@ -361,7 +361,9 @@ public class AsyncMultiThreadGAParents<S extends Solution<?>>
         if (stoppingConditionIsNotMet() && submittedTasks < maximumScheduledEvaluations) {
           if (thereAreInitialTasksPending(initialTasks)) {
             submitTask(getInitialTask(initialTasks));
-          } else {
+          } else if (population.size() >= crossover.getNumberOfRequiredParents()
+              || submittedTasks == evaluations) {
+            // Create work only when parent selection is possible or no evaluations remain in flight.
             submitTask(createNewTask());
           }
         }
