@@ -2,6 +2,7 @@ package moeba.utils.observer;
 
 import moeba.ColumnType;
 import moeba.Problem;
+import moeba.constraint.ConstraintFunction;
 import moeba.fitnessfunction.FitnessFunction;
 import moeba.representationwrapper.RepresentationWrapper;
 import moeba.representationwrapper.impl.GenericRepresentationWrapper;
@@ -18,6 +19,8 @@ import org.uma.jmetal.solution.compositesolution.CompositeSolution;
  * It allows for registration of observer instances that can perform actions (e.g., logging or writing to a file) when a solution is evaluated.
  */
 public class ProblemObserver extends Problem {
+    private static final ConstraintFunction[] NO_CONSTRAINTS = new ConstraintFunction[0];
+
     // Array of observer instances to be notified upon solution evaluation
     protected ObserverInterface[] observers;
     private final Object observerNotificationLock = new Object();
@@ -36,7 +39,32 @@ public class ProblemObserver extends Problem {
             CacheStorage<String, Double[]> externalCache, CacheStorage<String, Double>[] internalCaches,
             RepresentationWrapper representationWrapper, ObserverInterface[] observers) {
 
-        super(data, types, strFitnessFunctions, externalCache, internalCaches, representationWrapper);
+        this(
+            data,
+            types,
+            strFitnessFunctions,
+            NO_CONSTRAINTS,
+            externalCache,
+            internalCaches,
+            representationWrapper,
+            observers
+        );
+    }
+
+    public ProblemObserver(double[][] data, ColumnType[] types, String[] strFitnessFunctions,
+            ConstraintFunction[] constraintFunctions,
+            CacheStorage<String, Double[]> externalCache, CacheStorage<String, Double>[] internalCaches,
+            RepresentationWrapper representationWrapper, ObserverInterface[] observers) {
+
+        super(
+            data,
+            types,
+            strFitnessFunctions,
+            constraintFunctions,
+            externalCache,
+            internalCaches,
+            representationWrapper
+        );
         checkObservers(observers);
         this.observers = observers;
     }
@@ -45,7 +73,21 @@ public class ProblemObserver extends Problem {
             CacheStorage<String, Double[]> externalCache, CacheStorage<String, Double>[] internalCaches,
             RepresentationWrapper representationWrapper, ObserverInterface[] observers) {
 
-        super(fitnessFunctions, externalCache, internalCaches, representationWrapper);
+        this(
+            fitnessFunctions,
+            NO_CONSTRAINTS,
+            externalCache,
+            internalCaches,
+            representationWrapper,
+            observers
+        );
+    }
+
+    public ProblemObserver(FitnessFunction[] fitnessFunctions, ConstraintFunction[] constraintFunctions,
+            CacheStorage<String, Double[]> externalCache, CacheStorage<String, Double>[] internalCaches,
+            RepresentationWrapper representationWrapper, ObserverInterface[] observers) {
+
+        super(fitnessFunctions, constraintFunctions, externalCache, internalCaches, representationWrapper);
         checkObservers(observers);
         this.observers = observers;
     }

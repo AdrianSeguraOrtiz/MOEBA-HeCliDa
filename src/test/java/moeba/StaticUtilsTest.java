@@ -10,7 +10,14 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collections;
 
+import moeba.constraint.ConstraintFunction;
+import moeba.fitnessfunction.FitnessFunction;
+import moeba.fitnessfunction.impl.BiclusterSizeNormComp;
+import moeba.representationwrapper.impl.IndividualRepresentationWrapper;
+import org.uma.jmetal.solution.doublesolution.impl.DefaultDoubleSolution;
+import org.uma.jmetal.util.comparator.DominanceComparator;
 import static moeba.StaticUtils.csvToStringMatrix;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -81,6 +88,57 @@ public class StaticUtilsTest {
         );
 
         assertTrue(exception.getMessage().contains("requires --num-threads > 1"));
+    }
+
+    @Test
+    void constrainedProblemsRejectAlgorithmsWithoutAuditedConstraintSupport() {
+        double[][] data = new double[4][4];
+        ColumnType[] types = new ColumnType[] {
+            ColumnType.numeric(), ColumnType.numeric(), ColumnType.numeric(), ColumnType.numeric()
+        };
+        Problem problem = new Problem(
+            new FitnessFunction[] {new BiclusterSizeNormComp(data, types, null, null, 0.5)},
+            new ConstraintFunction[] {biclusters -> 0.0},
+            null,
+            null,
+            new IndividualRepresentationWrapper(4, 4)
+        );
+
+        StaticUtils.validateConstraintSupport(problem, "NSGAII-AsyncParallel");
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> StaticUtils.validateConstraintSupport(problem, "MOCell-SingleThread")
+        );
+
+        assertTrue(exception.getMessage().contains("supported only by NSGA-II"));
+    }
+
+    @Test
+    void jMetalConstrainedDominanceOrdersFeasibilityViolationAndParetoQuality() {
+        DominanceComparator<DefaultDoubleSolution> comparator = new DominanceComparator<>();
+        DefaultDoubleSolution feasible = point(new double[] {0.9, 0.9}, 0.0);
+        DefaultDoubleSolution infeasible = point(new double[] {0.1, 0.1}, -0.1);
+        DefaultDoubleSolution lowerViolation = point(new double[] {0.9, 0.9}, -0.1);
+        DefaultDoubleSolution higherViolation = point(new double[] {0.1, 0.1}, -0.2);
+        DefaultDoubleSolution paretoDominant = point(new double[] {0.2, 0.4}, 0.0);
+        DefaultDoubleSolution paretoDominated = point(new double[] {0.3, 0.5}, 0.0);
+        DefaultDoubleSolution paretoTradeoff = point(new double[] {0.1, 0.8}, 0.0);
+
+        assertTrue(comparator.compare(feasible, infeasible) < 0);
+        assertTrue(comparator.compare(lowerViolation, higherViolation) < 0);
+        assertTrue(comparator.compare(paretoDominant, paretoDominated) < 0);
+        assertEquals(0, comparator.compare(paretoDominant, paretoTradeoff));
+    }
+
+    private static DefaultDoubleSolution point(double[] objectives, double constraint) {
+        DefaultDoubleSolution solution = new DefaultDoubleSolution(
+            objectives.length,
+            1,
+            Collections.emptyList()
+        );
+        System.arraycopy(objectives, 0, solution.objectives(), 0, objectives.length);
+        solution.constraints()[0] = constraint;
+        return solution;
     }
 
     @Test

@@ -10,8 +10,13 @@ import org.uma.jmetal.operator.selection.SelectionOperator;
 import org.uma.jmetal.operator.selection.impl.BinaryTournamentSelection;
 import org.uma.jmetal.problem.Problem;
 import org.uma.jmetal.solution.Solution;
+import org.uma.jmetal.util.comparator.ConstraintViolationComparator;
+import org.uma.jmetal.util.comparator.DominanceComparator;
+import org.uma.jmetal.util.comparator.MultiComparator;
 import org.uma.jmetal.util.comparator.RankingAndCrowdingDistanceComparator;
 import org.uma.jmetal.util.densityestimator.impl.CrowdingDistanceDensityEstimator;
+import org.uma.jmetal.util.ranking.Ranking;
+import org.uma.jmetal.util.ranking.impl.FastNonDominatedSortRanking;
 import org.uma.jmetal.util.ranking.impl.MergeNonDominatedSortRanking;
 import org.uma.jmetal.util.termination.Termination;
 
@@ -44,14 +49,33 @@ public class AsyncMultiThreadNSGAIIParents<S extends Solution<?>>
       CrossoverOperator<S> crossover,
       MutationOperator<S> mutation,
       int maximumEvaluations) {
+    this(
+        numberOfCores,
+        problem,
+        populationSize,
+        crossover,
+        mutation,
+        maximumEvaluations,
+        createComponents(problem)
+    );
+  }
+
+  private AsyncMultiThreadNSGAIIParents(
+      int numberOfCores,
+      Problem<S> problem,
+      int populationSize,
+      CrossoverOperator<S> crossover,
+      MutationOperator<S> mutation,
+      int maximumEvaluations,
+      Components<S> components) {
     super(
         numberOfCores,
         problem,
         populationSize,
         crossover,
         mutation,
-        createSelection(),
-        createReplacement(),
+        components.selection,
+        components.replacement,
         maximumEvaluations
     );
   }
@@ -64,27 +88,72 @@ public class AsyncMultiThreadNSGAIIParents<S extends Solution<?>>
       CrossoverOperator<S> crossover,
       MutationOperator<S> mutation,
       Termination termination) {
+    this(
+        numberOfCores,
+        problem,
+        populationSize,
+        crossover,
+        mutation,
+        termination,
+        createComponents(problem)
+    );
+  }
+
+  private AsyncMultiThreadNSGAIIParents(
+      int numberOfCores,
+      Problem<S> problem,
+      int populationSize,
+      CrossoverOperator<S> crossover,
+      MutationOperator<S> mutation,
+      Termination termination,
+      Components<S> components) {
     super(
         numberOfCores,
         problem,
         populationSize,
         crossover,
         mutation,
-        createSelection(),
-        createReplacement(),
+        components.selection,
+        components.replacement,
         termination
     );
   }
 
-  private static <S extends Solution<?>> SelectionOperator<List<S>, S> createSelection() {
-    return new BinaryTournamentSelection<>(new RankingAndCrowdingDistanceComparator<>());
+  private static <S extends Solution<?>> Components<S> createComponents(Problem<S> problem) {
+    if (problem.getNumberOfConstraints() == 0) {
+      return new Components<>(
+          new BinaryTournamentSelection<>(new RankingAndCrowdingDistanceComparator<>()),
+          createReplacement(new MergeNonDominatedSortRanking<>())
+      );
+    }
+
+    Ranking<S> ranking = new FastNonDominatedSortRanking<>(new DominanceComparator<>());
+    MultiComparator<S> selectionComparator = new MultiComparator<S>()
+        .add(new ConstraintViolationComparator<>())
+        .add(new RankingAndCrowdingDistanceComparator<>(ranking));
+    return new Components<>(
+        new BinaryTournamentSelection<>(selectionComparator),
+        createReplacement(ranking)
+    );
   }
 
-  private static <S extends Solution<?>> Replacement<S> createReplacement() {
+  private static <S extends Solution<?>> Replacement<S> createReplacement(Ranking<S> ranking) {
     return new RankingAndDensityEstimatorReplacement<>(
-        new MergeNonDominatedSortRanking<>(),
+        ranking,
         new CrowdingDistanceDensityEstimator<>(),
         Replacement.RemovalPolicy.oneShot
     );
+  }
+
+  private static final class Components<S extends Solution<?>> {
+    private final SelectionOperator<List<S>, S> selection;
+    private final Replacement<S> replacement;
+
+    private Components(
+        SelectionOperator<List<S>, S> selection,
+        Replacement<S> replacement) {
+      this.selection = selection;
+      this.replacement = replacement;
+    }
   }
 }

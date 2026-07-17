@@ -3,6 +3,7 @@ package moeba;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import moeba.constraint.ConstraintFunction;
 import moeba.fitnessfunction.FitnessFunction;
 import moeba.problem.AbstractMixedIntegerBinaryProblem;
 import moeba.representationwrapper.RepresentationWrapper;
@@ -19,7 +20,10 @@ import org.uma.jmetal.solution.integersolution.impl.DefaultIntegerSolution;
  */
 public class Problem extends AbstractMixedIntegerBinaryProblem {
 
+    private static final ConstraintFunction[] NO_CONSTRAINTS = new ConstraintFunction[0];
+
     private final FitnessFunction[] fitnessFunctions;
+    private final ConstraintFunction[] constraintFunctions;
     protected final CacheStorage<String, Double[]> externalCache;
     protected final CacheStorage<String, Double>[] internalCaches;
     protected final RepresentationWrapper representationWrapper;
@@ -46,7 +50,28 @@ public class Problem extends AbstractMixedIntegerBinaryProblem {
         RepresentationWrapper representationWrapper
     ) {
         this(
+            data,
+            types,
+            strFitnessFunctions,
+            NO_CONSTRAINTS,
+            externalCache,
+            internalCaches,
+            representationWrapper
+        );
+    }
+
+    public Problem(
+        double[][] data,
+        ColumnType[] types,
+        String[] strFitnessFunctions,
+        ConstraintFunction[] constraintFunctions,
+        CacheStorage<String, Double[]> externalCache,
+        CacheStorage<String, Double>[] internalCaches,
+        RepresentationWrapper representationWrapper
+    ) {
+        this(
             createFitnessFunctions(data, types, strFitnessFunctions, internalCaches, representationWrapper),
+            validateConstraintFunctions(constraintFunctions),
             externalCache,
             internalCaches,
             representationWrapper
@@ -60,7 +85,24 @@ public class Problem extends AbstractMixedIntegerBinaryProblem {
         RepresentationWrapper representationWrapper
     ) {
         this(
+            fitnessFunctions,
+            NO_CONSTRAINTS,
+            externalCache,
+            internalCaches,
+            representationWrapper
+        );
+    }
+
+    public Problem(
+        FitnessFunction[] fitnessFunctions,
+        ConstraintFunction[] constraintFunctions,
+        CacheStorage<String, Double[]> externalCache,
+        CacheStorage<String, Double>[] internalCaches,
+        RepresentationWrapper representationWrapper
+    ) {
+        this(
             validateFitnessFunctions(fitnessFunctions, internalCaches, representationWrapper),
+            validateConstraintFunctions(constraintFunctions),
             externalCache,
             internalCaches,
             representationWrapper
@@ -69,6 +111,7 @@ public class Problem extends AbstractMixedIntegerBinaryProblem {
 
     private Problem(
         ValidatedFitnessFunctions fitnessFunctions,
+        ConstraintFunction[] constraintFunctions,
         CacheStorage<String, Double[]> externalCache,
         CacheStorage<String, Double>[] internalCaches,
         RepresentationWrapper representationWrapper
@@ -85,10 +128,12 @@ public class Problem extends AbstractMixedIntegerBinaryProblem {
         this.representationWrapper = representationWrapper;
         this.evaluateFunction = externalCache == null ? this::evaluateWithoutCache : this::evaluateWithCache;
         this.fitnessFunctions = fitnessFunctions.values;
+        this.constraintFunctions = constraintFunctions;
 
         // Configure the problem's parameters
         setNumberOfVariables(2);
         setNumberOfObjectives(this.fitnessFunctions.length);
+        setNumberOfConstraints(this.constraintFunctions.length);
         setName("Problem");
     }
 
@@ -102,7 +147,13 @@ public class Problem extends AbstractMixedIntegerBinaryProblem {
     @Override
     public CompositeSolution evaluate(CompositeSolution solution) {
         ArrayList<ArrayList<Integer>[]> biclusters = representationWrapper.getBiclustersFromRepresentation(solution);
-        return evaluateFunction.evaluate(solution, biclusters);
+        CompositeSolution result = evaluateFunction.evaluate(solution, biclusters);
+        for (int i = 0; i < constraintFunctions.length; i++) {
+            double value = constraintFunctions[i].run(biclusters);
+            requireFinite("Constraint", i, value);
+            result.constraints()[i] = value;
+        }
+        return result;
     }
 
     /**
@@ -115,7 +166,9 @@ public class Problem extends AbstractMixedIntegerBinaryProblem {
     public CompositeSolution evaluateWithoutCache(CompositeSolution solution, ArrayList<ArrayList<Integer>[]> biclusters){
         // Apply each fitness function to the biclusters and update the solution objectives
         for (int i = 0; i < fitnessFunctions.length; i++){
-            solution.objectives()[i] = fitnessFunctions[i].run(biclusters);
+            double value = fitnessFunctions[i].run(biclusters);
+            requireFinite("Objective", i, value);
+            solution.objectives()[i] = value;
         }
         return solution;
     }
@@ -130,8 +183,22 @@ public class Problem extends AbstractMixedIntegerBinaryProblem {
     public CompositeSolution evaluateWithCache(CompositeSolution solution, ArrayList<ArrayList<Integer>[]> biclusters){
         String key = StaticUtils.biclustersToString(biclusters);
         if (externalCache.containsKey(key)){
+            Double[] cachedObjectives = externalCache.get(key);
+            if (cachedObjectives == null || cachedObjectives.length != fitnessFunctions.length) {
+                throw new IllegalArgumentException(
+                    "Cached objective vector must contain exactly "
+                        + fitnessFunctions.length + " values."
+                );
+            }
             for (int i = 0; i < fitnessFunctions.length; i++){
-                solution.objectives()[i] = externalCache.get(key)[i];
+                if (cachedObjectives[i] == null) {
+                    throw new IllegalArgumentException(
+                        "Cached objective at index " + i + " cannot be null."
+                    );
+                }
+                double value = cachedObjectives[i];
+                requireFinite("Cached objective", i, value);
+                solution.objectives()[i] = value;
             }
         } else {
             solution = evaluateWithoutCache(solution, biclusters);
@@ -154,13 +221,21 @@ public class Problem extends AbstractMixedIntegerBinaryProblem {
     @Override
     public CompositeSolution createSolution() {
         IntegerSolution integerSolution = new DefaultIntegerSolution(getNumberOfObjectives(), getNumberOfConstraints(), super.integerBounds);
-        BinarySolution binarySolution = new DefaultBinarySolution(super.numBitsPerVariable, getNumberOfObjectives());
+        BinarySolution binarySolution = new DefaultBinarySolution(
+            super.numBitsPerVariable,
+            getNumberOfObjectives(),
+            getNumberOfConstraints()
+        );
 
         return representationWrapper.buildComposition(integerSolution, binarySolution);
     }
 
     public FitnessFunction[] getFitnessFunctions() {
         return Arrays.copyOf(fitnessFunctions, fitnessFunctions.length);
+    }
+
+    public ConstraintFunction[] getConstraintFunctions() {
+        return Arrays.copyOf(constraintFunctions, constraintFunctions.length);
     }
 
     public RepresentationWrapper getRepresentationWrapper() {
@@ -222,6 +297,29 @@ public class Problem extends AbstractMixedIntegerBinaryProblem {
             );
         }
         return new ValidatedFitnessFunctions(copy);
+    }
+
+    private static ConstraintFunction[] validateConstraintFunctions(
+        ConstraintFunction[] constraintFunctions
+    ) {
+        if (constraintFunctions == null) {
+            throw new IllegalArgumentException("Problem constraint functions cannot be null.");
+        }
+        ConstraintFunction[] copy = Arrays.copyOf(constraintFunctions, constraintFunctions.length);
+        for (int i = 0; i < copy.length; i++) {
+            if (copy[i] == null) {
+                throw new IllegalArgumentException("Constraint function at index " + i + " is null.");
+            }
+        }
+        return copy;
+    }
+
+    private static void requireFinite(String valueName, int index, double value) {
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException(
+                valueName + " at index " + index + " must be finite, but was " + value + "."
+            );
+        }
     }
     
 }

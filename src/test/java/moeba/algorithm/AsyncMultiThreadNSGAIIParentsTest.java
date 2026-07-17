@@ -12,14 +12,18 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import moeba.ColumnType;
+import moeba.constraint.ConstraintFunction;
 import moeba.fitnessfunction.FitnessFunction;
+import moeba.fitnessfunction.IndividualBiclusterFitnessFunction;
 import moeba.fitnessfunction.impl.BiclusterSizeNormComp;
 import moeba.representationwrapper.impl.IndividualRepresentationWrapper;
 import moeba.utils.observer.ProblemObserver;
 import org.junit.jupiter.api.Test;
 import org.uma.jmetal.operator.crossover.CrossoverOperator;
 import org.uma.jmetal.operator.mutation.MutationOperator;
+import org.uma.jmetal.solution.binarysolution.BinarySolution;
 import org.uma.jmetal.solution.compositesolution.CompositeSolution;
+import org.uma.jmetal.util.binarySet.BinarySet;
 
 class AsyncMultiThreadNSGAIIParentsTest {
     private static final int POPULATION_SIZE = 2;
@@ -97,6 +101,49 @@ class AsyncMultiThreadNSGAIIParentsTest {
 
         assertEquals(1, observer.count.get());
         assertEquals(1, algorithm.getResult().size());
+        assertNoWorkersRunning();
+    }
+
+    @Test
+    void constrainedReplacementPrefersFeasibleSolutionsOverBetterObjectives() {
+        IndividualRepresentationWrapper wrapper = new IndividualRepresentationWrapper(4, 4);
+        double[][] data = new double[4][4];
+        ColumnType[] types = new ColumnType[] {
+            ColumnType.numeric(), ColumnType.numeric(), ColumnType.numeric(), ColumnType.numeric()
+        };
+        FitnessFunction[] objectives = new FitnessFunction[] {
+            new DenseSelectionPenalty(data, types),
+            new DenseSelectionPenalty(data, types)
+        };
+        ConstraintFunction[] constraints = new ConstraintFunction[] {
+            biclusters -> biclusters.size() == 1
+                && biclusters.get(0)[0].size() == 4
+                && biclusters.get(0)[1].size() == 4
+                ? 0.0
+                : -1.0
+        };
+        ProblemObserver problem = new ProblemObserver(
+            objectives,
+            constraints,
+            null,
+            null,
+            wrapper,
+            new ProblemObserver.ObserverInterface[0]
+        );
+        AsyncMultiThreadNSGAIIParents<CompositeSolution> algorithm = new AsyncMultiThreadNSGAIIParents<>(
+            2,
+            problem,
+            2,
+            new AllBitsCrossover(),
+            new NoMutation(),
+            4
+        );
+
+        algorithm.run();
+
+        assertEquals(2, algorithm.getResult().size());
+        assertTrue(algorithm.getResult().stream().allMatch(solution -> solution.constraints()[0] >= 0.0));
+        assertTrue(algorithm.getResult().stream().allMatch(solution -> solution.objectives()[0] == 1.0));
         assertNoWorkersRunning();
     }
 
@@ -207,6 +254,55 @@ class AsyncMultiThreadNSGAIIParentsTest {
         @Override
         public int getNumberOfGeneratedChildren() {
             return delegate.getNumberOfGeneratedChildren();
+        }
+    }
+
+    private static final class DenseSelectionPenalty extends IndividualBiclusterFitnessFunction {
+        private DenseSelectionPenalty(double[][] data, ColumnType[] types) {
+            super(data, types, null, null);
+        }
+
+        @Override
+        protected double getBiclusterScore(java.util.ArrayList<Integer>[] bicluster) {
+            double selected = bicluster[0].size() + bicluster[1].size();
+            return 1.0 - selected / 8.0;
+        }
+    }
+
+    private static final class AllBitsCrossover implements CrossoverOperator<CompositeSolution> {
+        @Override
+        public List<CompositeSolution> execute(List<CompositeSolution> parents) {
+            CompositeSolution child = (CompositeSolution) parents.get(0).copy();
+            BinarySet bits = ((BinarySolution) child.variables().get(1)).variables().get(0);
+            bits.set(0, bits.getBinarySetLength());
+            return Collections.singletonList(child);
+        }
+
+        @Override
+        public double getCrossoverProbability() {
+            return 1.0;
+        }
+
+        @Override
+        public int getNumberOfRequiredParents() {
+            return 2;
+        }
+
+        @Override
+        public int getNumberOfGeneratedChildren() {
+            return 1;
+        }
+    }
+
+    private static final class NoMutation implements MutationOperator<CompositeSolution> {
+        @Override
+        public CompositeSolution execute(CompositeSolution solution) {
+            return solution;
+        }
+
+        @Override
+        public double getMutationProbability() {
+            return 0.0;
         }
     }
 }

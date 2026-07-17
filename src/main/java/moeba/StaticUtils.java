@@ -720,6 +720,7 @@ public final class StaticUtils {
         List<CompositeSolution> population;
 
         strAlgorithm = resolveAlgorithmForThreadCount(strAlgorithm, numThreads);
+        validateConstraintSupport(problem, strAlgorithm);
 
         // Defines the termination condition for the algorithm
         Termination termination = new TerminationByEvaluations(maxEvaluations);
@@ -773,6 +774,7 @@ public final class StaticUtils {
                 // Instantiates and executes a single-threaded NSGA-II algorithm
                 Algorithm<List<CompositeSolution>> algorithm = new NSGAIIBuilder<>(problem, crossover, mutation, populationSize)
                         .setSelectionOperator(selection)
+                        .setDominanceComparator(new DominanceComparator<>())
                         .setMaxEvaluations(maxEvaluations)
                         .build();
 
@@ -1068,6 +1070,23 @@ public final class StaticUtils {
         }
 
         return strAlgorithm;
+    }
+
+    static void validateConstraintSupport(
+            Problem<CompositeSolution> problem,
+            String algorithm) {
+        if (problem.getNumberOfConstraints() == 0) {
+            return;
+        }
+        if (algorithm.startsWith("NSGAII-SingleThread")
+                || algorithm.startsWith("NSGAII-AsyncParallel")
+                || algorithm.startsWith("NSGAII-ExternalFile-AsyncParallel")) {
+            return;
+        }
+        throw new IllegalArgumentException(
+            "Constrained problems are currently supported only by NSGA-II algorithms, but "
+                + algorithm + " was requested."
+        );
     }
 
     private static String replaceAsyncAlgorithm(String strAlgorithm, String asyncAlgorithm, String singleThreadAlgorithm, int numThreads) {
