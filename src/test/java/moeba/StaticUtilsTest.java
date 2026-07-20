@@ -91,7 +91,7 @@ public class StaticUtilsTest {
     }
 
     @Test
-    void constrainedProblemsRejectAlgorithmsWithoutAuditedConstraintSupport() {
+    void constrainedProblemsAcceptOnlyAuditedAlgorithms() {
         double[][] data = new double[4][4];
         ColumnType[] types = new ColumnType[] {
             ColumnType.numeric(), ColumnType.numeric(), ColumnType.numeric(), ColumnType.numeric()
@@ -105,12 +105,58 @@ public class StaticUtilsTest {
         );
 
         StaticUtils.validateConstraintSupport(problem, "NSGAII-AsyncParallel");
-        IllegalArgumentException exception = assertThrows(
-            IllegalArgumentException.class,
-            () -> StaticUtils.validateConstraintSupport(problem, "MOCell-SingleThread")
-        );
+        StaticUtils.validateConstraintSupport(problem, "MOCell-SingleThread");
+        StaticUtils.validateConstraintSupport(problem, "SPEA2-SingleThread");
+        StaticUtils.validateConstraintSupport(problem, "NSGAIII-SingleThread");
+        for (String algorithm : Arrays.asList(
+                "MOEAD-SingleThread",
+                "SMS-EMOA-SingleThread",
+                "IBEA-SingleThread",
+                "MOSA-SingleThread")) {
+            IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> StaticUtils.validateConstraintSupport(problem, algorithm)
+            );
+            assertTrue(
+                exception.getMessage().contains("has not passed the constraint-handling audit")
+            );
+        }
+    }
 
-        assertTrue(exception.getMessage().contains("supported only by NSGA-II"));
+    @Test
+    void resolvesAlgorithmSpecificPopulationSizes() {
+        assertEquals(
+            81,
+            StaticUtils.resolvePopulationSizeForAlgorithm(90, 2, "MOCell-SingleThread")
+        );
+        assertEquals(
+            4,
+            StaticUtils.resolvePopulationSizeForAlgorithm(
+                90,
+                2,
+                "NSGAIII-SingleThread(numberofdivisions=3)"
+            )
+        );
+        assertEquals(
+            90,
+            StaticUtils.resolvePopulationSizeForAlgorithm(90, 2, "NSGAII-SingleThread")
+        );
+    }
+
+    @Test
+    void resolvingNsgaiiiPopulationRequiresObjectivesAndValidDivisions() {
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> StaticUtils.resolvePopulationSizeForAlgorithm(90, "NSGAIII-SingleThread")
+        );
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> StaticUtils.resolvePopulationSizeForAlgorithm(
+                90,
+                2,
+                "NSGAIII-SingleThread(numberofdivisions=0)"
+            )
+        );
     }
 
     @Test

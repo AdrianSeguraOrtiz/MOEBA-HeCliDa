@@ -82,6 +82,7 @@ import org.uma.jmetal.experimental.componentbasedalgorithm.algorithm.singleobjec
 import org.uma.jmetal.experimental.componentbasedalgorithm.catalogue.replacement.impl.MuPlusLambdaReplacement;
 import org.uma.jmetal.operator.crossover.CrossoverOperator;
 import org.uma.jmetal.operator.mutation.MutationOperator;
+import org.uma.jmetal.operator.selection.impl.BinaryTournamentSelection;
 import org.uma.jmetal.operator.selection.impl.NaryTournamentSelection;
 import org.uma.jmetal.solution.Solution;
 import org.uma.jmetal.solution.compositesolution.CompositeSolution;
@@ -98,6 +99,7 @@ import org.uma.jmetal.util.archive.impl.SpatialSpreadDeviationArchive;
 import org.uma.jmetal.util.comparator.DominanceComparator;
 import org.uma.jmetal.util.comparator.ObjectiveComparator;
 import org.uma.jmetal.util.densityestimator.impl.CrowdingDistanceDensityEstimator;
+import org.uma.jmetal.util.densityestimator.impl.StrenghtRawFitnessDensityEstimator;
 import org.uma.jmetal.util.evaluator.impl.SequentialSolutionListEvaluator;
 import org.uma.jmetal.util.legacy.qualityindicator.impl.hypervolume.impl.PISAHypervolume;
 import org.uma.jmetal.util.neighborhood.Neighborhood;
@@ -899,61 +901,39 @@ public final class StaticUtils {
                 // Instantiates and executes a single-threaded MOCell algorithm
                 long initTime = System.currentTimeMillis();
 
-                // Adjust population size
-                populationSize = nearestPerfectSquare(populationSize);
+                int mocellPopulationSize = resolvePopulationSizeForAlgorithm(
+                    populationSize,
+                    problem.getNumberOfObjectives(),
+                    strAlgorithm
+                );
+                int offspringEvaluations = offspringEvaluations(
+                    "MOCell",
+                    maxEvaluations,
+                    mocellPopulationSize
+                );
+                NaryTournamentSelection<CompositeSolution> mocellSelection =
+                    constrainedSelection(problem, selection);
 
                 // Get subparameters
                 Map<String, String> subParams = StaticUtils.getSubParams("MOCell-SingleThread", strAlgorithm);
-                BoundedArchive<CompositeSolution> archive = new CrowdingDistanceArchive<>(populationSize);
-                Neighborhood<CompositeSolution> neighborhood = new C9<>((int)Math.sqrt(populationSize), (int)Math.sqrt(populationSize));
-
-                for (Map.Entry<String, String> entry : subParams.entrySet()) {
-                    if (entry.getKey().equals("archive")) {
-                        switch (entry.getValue()) {
-                            case "crowdingdistancearchive":
-                                archive = new CrowdingDistanceArchive<>(populationSize);
-                                break;
-                            case "hypervolumearchive":
-                                archive = new HypervolumeArchive<>(populationSize, new PISAHypervolume<>());
-                                break;
-                            case "spatialspreaddeviationarchive":
-                                archive = new SpatialSpreadDeviationArchive<>(populationSize);
-                                break;
-                            default:
-                                throw new IllegalArgumentException("The archive " + entry.getValue() + " is not implemented.");
-                        }
-                    } else if (entry.getKey().equals("neighborhood")) {
-                        switch (entry.getValue()) {
-                            case "c9":
-                                neighborhood = new C9<>((int)Math.sqrt(populationSize), (int)Math.sqrt(populationSize));
-                                break;
-                            case "c25":
-                                neighborhood = new C25<>((int)Math.sqrt(populationSize), (int)Math.sqrt(populationSize));
-                                break;
-                            case "l5":
-                                neighborhood = new L5<>((int)Math.sqrt(populationSize), (int)Math.sqrt(populationSize));
-                                break;
-                            case "l13":
-                                neighborhood = new L13<>((int)Math.sqrt(populationSize), (int)Math.sqrt(populationSize));
-                                break;
-                            case "l25":
-                                neighborhood = new L25<>((int)Math.sqrt(populationSize), (int)Math.sqrt(populationSize));
-                                break;
-                            default:
-                                throw new IllegalArgumentException("The neighborhood " + entry.getValue() + " is not implemented.");
-                        }
-                    }
-                }
+                BoundedArchive<CompositeSolution> archive = mocellArchive(
+                    subParams.getOrDefault("archive", "crowdingdistancearchive"),
+                    mocellPopulationSize
+                );
+                Neighborhood<CompositeSolution> neighborhood = mocellNeighborhood(
+                    subParams.getOrDefault("neighborhood", "c9"),
+                    mocellPopulationSize
+                );
 
                 MOCell<CompositeSolution> algorithm = new MOCell<CompositeSolution>(
                     problem,
-                    maxEvaluations,
-                    populationSize,
+                    offspringEvaluations,
+                    mocellPopulationSize,
                     archive,
                     neighborhood,
                     crossover,
                     mutation,
-                    selection,
+                    mocellSelection,
                     new SequentialSolutionListEvaluator<>()
                 );
 
@@ -968,16 +948,24 @@ public final class StaticUtils {
 
                 // Get subparameters
                 Map<String, String> subParams = StaticUtils.getSubParams("SPEA2-SingleThread", strAlgorithm);
+                int k = Integer.parseInt(subParams.getOrDefault("k", "1"));
+                if (k != 1) {
+                    throw new IllegalArgumentException(
+                        "jMetal 5.11 only applies k=1 in SPEA2; received k=" + k + "."
+                    );
+                }
+                StrenghtRawFitnessDensityEstimator<CompositeSolution> strengthEstimator =
+                    new StrenghtRawFitnessDensityEstimator<>(1);
 
                 SPEA2<CompositeSolution> algorithm = new SPEA2<CompositeSolution>(
                    problem,
-                   maxEvaluations / populationSize,
+                   generationalIterations("SPEA2", maxEvaluations, populationSize),
                    populationSize,
                    crossover,
                    mutation,
-                   selection,
+                   new BinaryTournamentSelection<>(strengthEstimator.getComparator()),
                    new SequentialSolutionListEvaluator<>(),
-                   Integer.parseInt(StaticUtils.getOne("SPEA2-SingleThread", subParams, "k", "1"))
+                   1
                 );
 
                 algorithm.run();
@@ -1008,14 +996,23 @@ public final class StaticUtils {
                 // Get subparameters
                 Map<String, String> subParams = StaticUtils.getSubParams("NSGAIII-SingleThread", strAlgorithm);
                 int numberOfDivisions = Integer.parseInt(StaticUtils.getOne("NSGAIII-SingleThread", subParams, "numberofdivisions", "12"));
+                int nsgaiiiPopulationSize = nsgaiiiPopulationSize(
+                    problem.getNumberOfObjectives(),
+                    numberOfDivisions
+                );
+                NaryTournamentSelection<CompositeSolution> nsgaiiiSelection =
+                    constrainedSelection(problem, selection);
                 
                 // Instantiates and executes a single-threaded NSGAIII algorithm
                 NSGAIII<CompositeSolution> algorithm = new NSGAIIIBuilder<>(problem)
                     .setCrossoverOperator(crossover)
                     .setMutationOperator(mutation)
-                    .setSelectionOperator(selection)
-                    .setPopulationSize(populationSize)
-                    .setMaxIterations(maxEvaluations / (int) CombinatoricsUtils.binomialCoefficient(numberOfDivisions + problem.getNumberOfObjectives() - 1, problem.getNumberOfObjectives() - 1))
+                    .setSelectionOperator(nsgaiiiSelection)
+                    .setMaxIterations(generationalIterations(
+                        "NSGA-III",
+                        maxEvaluations,
+                        nsgaiiiPopulationSize
+                    ))
                     .setNumberOfDivisions(numberOfDivisions)
                     .build();
 
@@ -1080,13 +1077,149 @@ public final class StaticUtils {
         }
         if (algorithm.startsWith("NSGAII-SingleThread")
                 || algorithm.startsWith("NSGAII-AsyncParallel")
-                || algorithm.startsWith("NSGAII-ExternalFile-AsyncParallel")) {
+                || algorithm.startsWith("NSGAII-ExternalFile-AsyncParallel")
+                || algorithm.startsWith("MOCell-SingleThread")
+                || algorithm.startsWith("SPEA2-SingleThread")
+                || algorithm.startsWith("NSGAIII-SingleThread")) {
             return;
         }
         throw new IllegalArgumentException(
-            "Constrained problems are currently supported only by NSGA-II algorithms, but "
-                + algorithm + " was requested."
+            "Constrained problems are supported only by NSGA-II, MOCell, SPEA2, and NSGA-III; "
+                + algorithm + " has not passed the constraint-handling audit."
         );
+    }
+
+    /** Returns the actual population size used by an algorithm. */
+    public static int resolvePopulationSizeForAlgorithm(
+            int requestedPopulationSize,
+            int numberOfObjectives,
+            String algorithm) {
+        if (requestedPopulationSize <= 0) {
+            throw new IllegalArgumentException("Population size must be positive.");
+        }
+        if (numberOfObjectives <= 0) {
+            throw new IllegalArgumentException("Number of objectives must be positive.");
+        }
+        if (algorithm == null || algorithm.trim().isEmpty()) {
+            throw new IllegalArgumentException("Algorithm cannot be blank.");
+        }
+        if (algorithm.startsWith("MOCell-SingleThread")) {
+            return nearestPerfectSquare(requestedPopulationSize);
+        }
+        if (algorithm.startsWith("NSGAIII-SingleThread")) {
+            Map<String, String> subParams = getSubParams("NSGAIII-SingleThread", algorithm);
+            int divisions = Integer.parseInt(
+                getOne("NSGAIII-SingleThread", subParams, "numberofdivisions", "12")
+            );
+            return nsgaiiiPopulationSize(numberOfObjectives, divisions);
+        }
+        return requestedPopulationSize;
+    }
+
+    /** Compatibility overload for algorithms whose population does not depend on objective count. */
+    public static int resolvePopulationSizeForAlgorithm(
+            int requestedPopulationSize,
+            String algorithm) {
+        if (algorithm != null && algorithm.startsWith("NSGAIII-SingleThread")) {
+            throw new IllegalArgumentException(
+                "Resolving the NSGA-III population requires the number of objectives."
+            );
+        }
+        return resolvePopulationSizeForAlgorithm(requestedPopulationSize, 1, algorithm);
+    }
+
+    private static NaryTournamentSelection<CompositeSolution> constrainedSelection(
+            Problem<CompositeSolution> problem,
+            NaryTournamentSelection<CompositeSolution> fallback) {
+        return problem.getNumberOfConstraints() == 0
+            ? fallback
+            : new BinaryTournamentSelection<>(new DominanceComparator<>());
+    }
+
+    private static BoundedArchive<CompositeSolution> mocellArchive(
+            String archive,
+            int populationSize) {
+        switch (archive) {
+            case "crowdingdistancearchive":
+                return new CrowdingDistanceArchive<>(populationSize);
+            case "hypervolumearchive":
+                return new HypervolumeArchive<>(populationSize, new PISAHypervolume<>());
+            case "spatialspreaddeviationarchive":
+                return new SpatialSpreadDeviationArchive<>(populationSize);
+            default:
+                throw new IllegalArgumentException(
+                    "The MOCell archive " + archive + " is not implemented."
+                );
+        }
+    }
+
+    private static Neighborhood<CompositeSolution> mocellNeighborhood(
+            String neighborhood,
+            int populationSize) {
+        int sideLength = (int) Math.sqrt(populationSize);
+        switch (neighborhood) {
+            case "c9":
+                return new C9<>(sideLength, sideLength);
+            case "c25":
+                return new C25<>(sideLength, sideLength);
+            case "l5":
+                return new L5<>(sideLength, sideLength);
+            case "l13":
+                return new L13<>(sideLength, sideLength);
+            case "l25":
+                return new L25<>(sideLength, sideLength);
+            default:
+                throw new IllegalArgumentException(
+                    "The MOCell neighborhood " + neighborhood + " is not implemented."
+                );
+        }
+    }
+
+    private static int offspringEvaluations(
+            String algorithm,
+            int maxEvaluations,
+            int populationSize) {
+        requireEvaluationBudget(algorithm, maxEvaluations, populationSize);
+        return maxEvaluations - populationSize;
+    }
+
+    private static int generationalIterations(
+            String algorithm,
+            int maxEvaluations,
+            int populationSize) {
+        requireEvaluationBudget(algorithm, maxEvaluations, populationSize);
+        return (maxEvaluations - 1) / populationSize + 1;
+    }
+
+    private static void requireEvaluationBudget(
+            String algorithm,
+            int maxEvaluations,
+            int populationSize) {
+        if (maxEvaluations < populationSize) {
+            throw new IllegalArgumentException(
+                algorithm + " max evaluations (" + maxEvaluations
+                    + ") must be at least its effective population size ("
+                    + populationSize + ")."
+            );
+        }
+    }
+
+    private static int roundUpToMultipleOfFour(int value) {
+        return value + Math.floorMod(-value, 4);
+    }
+
+    private static int nsgaiiiPopulationSize(int numberOfObjectives, int divisions) {
+        if (divisions <= 0) {
+            throw new IllegalArgumentException("NSGA-III number of divisions must be positive.");
+        }
+        long referencePoints = CombinatoricsUtils.binomialCoefficient(
+            divisions + numberOfObjectives - 1,
+            numberOfObjectives - 1
+        );
+        if (referencePoints > Integer.MAX_VALUE - 3L) {
+            throw new IllegalArgumentException("NSGA-III population size exceeds integer capacity.");
+        }
+        return roundUpToMultipleOfFour((int) referencePoints);
     }
 
     private static String replaceAsyncAlgorithm(String strAlgorithm, String asyncAlgorithm, String singleThreadAlgorithm, int numThreads) {
